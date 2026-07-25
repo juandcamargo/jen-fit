@@ -1,26 +1,216 @@
 @import "tailwindcss";
 
+/* -------------------------------------------------------------------------
+   Jen Fit design tokens
+   Feminine, warm, aspirational — never neon, never childish.
+   Light mode: warm white / cream base. Dark mode: deep plum-charcoal base.
+   ------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* base surfaces */
+  --color-bg: #fdf8f4; /* warm white */
+  --color-bg-alt: #faf1e6; /* cream */
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-border: #ece1d8;
+
+  /* text */
+  --color-text-primary: #3a2f36;
+  --color-text-secondary: #7a6b70;
+  --color-text-muted: #a89ba0;
+
+  /* brand accents */
+  --color-rose: #e8afb8; /* rosa empolvado */
+  --color-rose-strong: #d98a97;
+  --color-lavender: #c3b2e0;
+  --color-lavender-strong: #a48ed1;
+  --color-plum: #6f3f77; /* morado ciruela */
+  --color-plum-strong: #582c60;
+  --color-plum-soft: #f2e8f2;
+
+  /* state colors */
+  --color-mint: #6fcbaa; /* positive */
+  --color-mint-soft: #e3f6ef;
+  --color-coral: #f0967c; /* soft alert */
+  --color-coral-soft: #fbeae4;
+  --color-error: #d94f4f; /* errors / real warnings only */
+  --color-error-soft: #fbe6e6;
+
+  /* gradients */
+  --gradient-hero: linear-gradient(135deg, #f6dfe4 0%, #e6d6f0 55%, #d9c4ec 100%);
+  --gradient-plum: linear-gradient(135deg, #7a4b86 0%, #582c60 100%);
+  --gradient-ring: conic-gradient(from -90deg, var(--color-plum) 0%, var(--color-rose) 100%);
+
+  /* radii */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 999px;
+
+  /* shadows */
+  --shadow-sm: 0 1px 3px rgba(58, 47, 54, 0.06), 0 1px 2px rgba(58, 47, 54, 0.04);
+  --shadow-md: 0 8px 24px rgba(58, 47, 54, 0.08);
+  --shadow-lg: 0 16px 40px rgba(58, 47, 54, 0.12);
+  --shadow-glow-rose: 0 8px 28px rgba(216, 137, 155, 0.35);
+  --shadow-glow-plum: 0 8px 28px rgba(88, 44, 96, 0.28);
+
+  /* easing (per design skill: strong custom curves, no default ease-in) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #211823;
+  --color-bg-alt: #2a1e2c;
+  --color-surface: #2c2030;
+  --color-surface-raised: #34273a;
+  --color-border: #453a49;
+
+  --color-text-primary: #f6eef2;
+  --color-text-secondary: #cbb9c4;
+  --color-text-muted: #93818d;
+
+  --color-rose: #e2a3ae;
+  --color-rose-strong: #d98a97;
+  --color-lavender: #b7a1da;
+  --color-lavender-strong: #9c82c9;
+  --color-plum: #b98cc4;
+  --color-plum-strong: #d4a8dc;
+  --color-plum-soft: #3a2b3f;
+
+  --color-mint: #63c39f;
+  --color-mint-soft: #1f332c;
+  --color-coral: #e58e73;
+  --color-coral-soft: #3a281f;
+  --color-error: #e57373;
+  --color-error-soft: #3a2020;
+
+  --gradient-hero: linear-gradient(135deg, #3a2b3f 0%, #2f2438 55%, #241a2e 100%);
+  --gradient-plum: linear-gradient(135deg, #4a2c52 0%, #2f1a34 100%);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #211823;
+    --color-bg-alt: #2a1e2c;
+    --color-surface: #2c2030;
+    --color-surface-raised: #34273a;
+    --color-border: #453a49;
+    --color-text-primary: #f6eef2;
+    --color-text-secondary: #cbb9c4;
+    --color-text-muted: #93818d;
+    --color-rose: #e2a3ae;
+    --color-rose-strong: #d98a97;
+    --color-lavender: #b7a1da;
+    --color-lavender-strong: #9c82c9;
+    --color-plum: #b98cc4;
+    --color-plum-strong: #d4a8dc;
+    --color-plum-soft: #3a2b3f;
+    --color-mint: #63c39f;
+    --color-mint-soft: #1f332c;
+    --color-coral: #e58e73;
+    --color-coral-soft: #3a281f;
+    --color-error: #e57373;
+    --color-error-soft: #3a2020;
+    --gradient-hero: linear-gradient(135deg, #3a2b3f 0%, #2f2438 55%, #241a2e 100%);
+    --gradient-plum: linear-gradient(135deg, #4a2c52 0%, #2f1a34 100%);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
   }
 }
 
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-bg-alt: var(--color-bg-alt);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-border: var(--color-border);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-rose: var(--color-rose);
+  --color-rose-strong: var(--color-rose-strong);
+  --color-lavender: var(--color-lavender);
+  --color-lavender-strong: var(--color-lavender-strong);
+  --color-plum: var(--color-plum);
+  --color-plum-strong: var(--color-plum-strong);
+  --color-plum-soft: var(--color-plum-soft);
+  --color-mint: var(--color-mint);
+  --color-mint-soft: var(--color-mint-soft);
+  --color-coral: var(--color-coral);
+  --color-coral-soft: var(--color-coral-soft);
+  --color-error: var(--color-error);
+  --color-error-soft: var(--color-error-soft);
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-fraunces);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+/* Press feedback — every pressable control gets this. */
+.pressable {
+  transition: transform 140ms var(--ease-out);
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hoverable:hover {
+    transform: translateY(-1px);
+  }
+}
+
+::selection {
+  background: var(--color-rose);
+  color: white;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
