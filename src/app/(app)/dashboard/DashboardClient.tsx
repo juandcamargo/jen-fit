@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -187,12 +186,20 @@ export function DashboardClient({
     return suggestWaysToCloseGap({ gapKcal: projection.gapToTargetKcal, weightKg });
   }, [projection, weightKg]);
 
+  const projectedDeficit = projection ? projection.projectedBurn - projection.projectedIntake : 0;
+  const targetDeficitKcal = today?.targetDeficitKcal ?? 0;
+
   const projectionChartData = projection
     ? [
-        { name: "Consumo proyectado", value: projection.projectedIntake, fill: "var(--color-coral)" },
-        { name: "Gasto proyectado", value: projection.projectedBurn, fill: "var(--color-mint)" },
+        { name: "Consumo proyectado", value: projection.projectedIntake, color: "var(--color-coral)" },
+        { name: "Gasto proyectado", value: projection.projectedBurn, color: "var(--color-mint)" },
       ]
     : [];
+  const projectionMax = Math.max(1, ...projectionChartData.map((d) => d.value));
+  // 10% headroom so the target marker never sits flush against the
+  // overflow-hidden edge of the bar, where it would get clipped away.
+  const deficitChartMax = Math.max(1, Math.abs(projectedDeficit), targetDeficitKcal) * 1.1;
+  const targetMarkerPercent = Math.min(97, (targetDeficitKcal / deficitChartMax) * 100);
 
   const groupedMeals = MEAL_ORDER.map((type) => ({
     type,
@@ -220,13 +227,21 @@ export function DashboardClient({
       {/* ---------------- Métricas principales ---------------- */}
       <section>
         <SectionTitle icon="target" title="Tu día, ahora mismo" />
-        <div className="grid grid-cols-2 gap-3">
+
+        <DeficitHeroCard
+          deficitSoFar={deficitSoFar}
+          targetDeficitKcal={targetDeficitKcal}
+          fractionOfDayElapsed={fractionOfDayElapsed}
+        />
+
+        <div className="grid grid-cols-3 gap-3 mt-3">
           <MetricRingCard
             label="Consumidas hoy"
             value={Math.round(today?.caloriesConsumed ?? 0)}
             goal={Math.round(today?.caloriesGoal ?? 0)}
             unit="kcal"
             color="var(--color-plum)"
+            size="sm"
           />
           <MetricRingCard
             label="Quemadas hasta ahora"
@@ -234,16 +249,17 @@ export function DashboardClient({
             goal={Math.round(today?.expectedExpenditure ?? 0)}
             unit="kcal"
             color="var(--color-mint)"
-            hint="Metabolismo basal + ejercicio de hoy"
+            hint="Metabolismo + ejercicio"
+            size="sm"
           />
-          <BalanceCard deficitOrSurplus={Math.round(deficitSoFar)} />
           <MetricRingCard
             label="Proteína"
             value={Math.round(today?.proteinConsumed ?? 0)}
             goal={Math.round(today?.proteinGoal ?? 0)}
             unit="g"
             color="var(--color-rose-strong)"
-            hint={today && today.proteinCollagen > 0 ? `Incluye ${Math.round(today.proteinCollagen)}g de colágeno` : undefined}
+            hint={today && today.proteinCollagen > 0 ? `Incl. ${Math.round(today.proteinCollagen)}g colágeno` : undefined}
+            size="sm"
           />
         </div>
 
@@ -290,24 +306,52 @@ export function DashboardClient({
         <section>
           <SectionTitle icon="chartSimple" title="Estimado para hoy" />
           <Card className="p-5">
-            <p className="text-xs text-[var(--color-text-secondary)] mb-3">
+            <p className="text-xs text-[var(--color-text-secondary)] mb-4">
               Si mantienes el ritmo de hoy: consumirías ~{projection.projectedIntake} kcal y quemarías ~
               {projection.projectedBurn} kcal (metabolismo + ejercicio).
             </p>
-            <ResponsiveContainer width="100%" height={110}>
-              <BarChart data={projectionChartData} layout="vertical" margin={{ left: 8, right: 24 }}>
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22}>
-                  {projectionChartData.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                  <LabelList dataKey="value" position="right" style={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
 
-            <div className="flex items-center gap-2 mt-2 pt-3 border-t border-[var(--color-border)]">
+            <div className="flex flex-col gap-3">
+              {projectionChartData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-3">
+                  <span className="text-xs text-[var(--color-text-secondary)] w-[110px] shrink-0">{entry.name}</span>
+                  <div className="flex-1 h-6 rounded-full bg-[var(--color-bg-alt)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${(entry.value / projectionMax) * 100}%`, background: entry.color }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold w-16 text-right shrink-0">{Math.round(entry.value)}</span>
+                </div>
+              ))}
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[var(--color-text-secondary)] w-[110px] shrink-0">Déficit proyectado</span>
+                <div className="flex-1 h-6 rounded-full bg-[var(--color-bg-alt)] overflow-hidden relative">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, (Math.abs(projectedDeficit) / deficitChartMax) * 100)}%`,
+                      background: projection.onTrack ? "var(--color-mint)" : "var(--color-coral)",
+                    }}
+                  />
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-[var(--color-text-primary)]"
+                    style={{ left: `${targetMarkerPercent}%` }}
+                    title="Meta de hoy"
+                  />
+                </div>
+                <span className="text-sm font-semibold w-16 text-right shrink-0">
+                  {projectedDeficit >= 0 ? "-" : "+"}
+                  {Math.round(Math.abs(projectedDeficit))}
+                </span>
+              </div>
+              <p className="text-[10px] text-[var(--color-text-muted)] -mt-1">
+                La línea marca tu meta de hoy: -{Math.round(targetDeficitKcal)} kcal
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--color-border)]">
               <Icon
                 name={projection.onTrack ? "circleCheck" : "info"}
                 className={projection.onTrack ? "text-[var(--color-mint)]" : "text-[var(--color-coral)]"}
@@ -522,24 +566,57 @@ function MetricRingCard({
   );
 }
 
-function BalanceCard({ deficitOrSurplus }: { deficitOrSurplus: number }) {
-  const isDeficit = deficitOrSurplus < 0;
-  const label = isDeficit ? "Déficit hoy" : deficitOrSurplus > 0 ? "Superávit hoy" : "En equilibrio";
-  const color = isDeficit ? "var(--color-mint)" : deficitOrSurplus > 0 ? "var(--color-coral)" : "var(--color-plum)";
+// The headline metric: today's calorie deficit, shown against the pace
+// needed at this hour to hit the day's target (targetDeficitKcal is a
+// full-day goal, so we prorate it by how much of the day has elapsed).
+function DeficitHeroCard({
+  deficitSoFar,
+  targetDeficitKcal,
+  fractionOfDayElapsed,
+}: {
+  deficitSoFar: number;
+  targetDeficitKcal: number;
+  fractionOfDayElapsed: number;
+}) {
+  const isDeficit = deficitSoFar < 0;
+  const currentMagnitude = Math.abs(deficitSoFar);
+  const tooEarly = fractionOfDayElapsed < 0.15;
+  const proratedTarget = Math.max(targetDeficitKcal * fractionOfDayElapsed, 40);
+  const percent = isDeficit ? Math.min(100, (currentMagnitude / proratedTarget) * 100) : 0;
+  const onPace = isDeficit && currentMagnitude >= proratedTarget * 0.9;
+  const color = !isDeficit ? "var(--color-coral)" : onPace ? "var(--color-mint)" : "var(--color-plum)";
+
+  let statusText: string;
+  if (tooEarly) {
+    statusText = "El día recién empieza — sigue registrando tus comidas y actividad.";
+  } else if (!isDeficit) {
+    statusText = `Vas ${Math.round(currentMagnitude)} kcal en superávit por ahora. Aún puedes ajustar el resto del día.`;
+  } else if (onPace) {
+    statusText = "Vas al ritmo correcto para cumplir tu meta de hoy.";
+  } else {
+    statusText = `Vas ${Math.round(proratedTarget - currentMagnitude)} kcal por debajo del ritmo esperado a esta hora.`;
+  }
+
   return (
-    <Card className="p-4 flex flex-col items-center justify-center text-center gap-2">
-      <div
-        className="w-24 h-24 rounded-full flex items-center justify-center"
-        style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
-      >
-        <div>
-          <p className="text-xl font-display font-semibold" style={{ color }}>
-            {Math.abs(Math.round(deficitOrSurplus))}
+    <Card className="p-6 flex flex-col sm:flex-row items-center gap-6" style={{ borderColor: color }}>
+      <ProgressRing percent={percent} size={128} strokeWidth={11} color={color}>
+        <div className="text-center">
+          <p className="text-2xl font-display font-semibold" style={{ color }}>
+            {isDeficit ? "-" : "+"}
+            {Math.round(currentMagnitude)}
           </p>
-          <p className="text-[9px] text-[var(--color-text-muted)]">kcal</p>
+          <p className="text-[10px] text-[var(--color-text-muted)]">kcal hasta ahora</p>
         </div>
+      </ProgressRing>
+      <div className="flex-1 text-center sm:text-left">
+        <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-1">
+          Déficit calórico de hoy
+        </p>
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          Meta de hoy: <span className="font-semibold text-[var(--color-text-primary)]">-{Math.round(targetDeficitKcal)} kcal</span>
+        </p>
+        <p className="text-sm mt-2">{statusText}</p>
       </div>
-      <p className="text-[11px] text-[var(--color-text-secondary)]">{label}</p>
     </Card>
   );
 }
