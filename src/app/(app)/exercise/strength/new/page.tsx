@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -47,6 +47,8 @@ interface SetRow {
 
 export default function NewStrengthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [date, setDate] = useState(searchParams.get("date") ?? new Date().toISOString().slice(0, 10));
   const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
   const [durationMin, setDurationMin] = useState(45);
   const [avgRestSec, setAvgRestSec] = useState(60);
@@ -79,7 +81,7 @@ export default function NewStrengthPage() {
     const res = await fetch("/api/exercise/strength", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ muscleGroups, durationMin, avgRestSec, routineType, effortLabel, sets }),
+      body: JSON.stringify({ muscleGroups, durationMin, avgRestSec, routineType, effortLabel, sets, date }),
     });
     const data = await res.json();
     setLoading(false);
@@ -92,6 +94,8 @@ export default function NewStrengthPage() {
     router.refresh();
   }
 
+  const isToday = date === new Date().toISOString().slice(0, 10);
+
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <div className="flex items-center gap-3">
@@ -102,6 +106,19 @@ export default function NewStrengthPage() {
       </div>
 
       <Card className="p-5 flex flex-col gap-4">
+        <div>
+          <Input
+            label="Fecha"
+            type="date"
+            value={date}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          {!isToday && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">Estás registrando un entrenamiento de un día anterior.</p>
+          )}
+        </div>
+
         <div>
           <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">Grupos musculares</p>
           <div className="flex flex-wrap gap-2">

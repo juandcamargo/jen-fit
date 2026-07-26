@@ -1,25 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { celebrate } from "@/lib/celebrate";
 import { balanceMessage, proteinMessage, waterMessage, workoutMessage, yesterdayGreeting } from "@/lib/motivation";
+import { projectDailyBalance, suggestWaysToCloseGap } from "@/lib/recommendation";
 
 interface SummaryLike {
   caloriesConsumed: number;
   caloriesGoal: number;
+  targetDeficitKcal: number;
   proteinConsumed: number;
   proteinGoal: number;
   proteinCollagen: number;
   carbsConsumed: number;
+  carbsGoal: number;
   fatConsumed: number;
+  fatGoal: number;
   waterConsumedMl: number;
   waterGoalMl: number;
+  baseExpenditure: number;
   exerciseCalories: number;
   expectedExpenditure: number;
   deficitOrSurplus: number;
@@ -66,6 +71,10 @@ export function DashboardClient({
   waterStreak,
   recentBadges,
   activeChallenges,
+  weightKg,
+  daysSinceMeasured,
+  bodyFatPercent,
+  targetBodyFatPercent,
 }: {
   name: string;
   level: { level: number; name: string; minPoints: number };
@@ -87,12 +96,18 @@ export function DashboardClient({
   waterStreak: number;
   recentBadges: { id: string; name: string; icon: string }[];
   activeChallenges: { id: string; progress: number; challenge: { title: string; icon: string; goalValue: number } }[];
+  weightKg: number | null;
+  daysSinceMeasured: number | null;
+  bodyFatPercent: number | null;
+  targetBodyFatPercent: number | null;
 }) {
   const [showMorning, setShowMorning] = useState(false);
   const [waterMl, setWaterMl] = useState(today?.waterConsumedMl ?? 0);
   const [waterLoading, setWaterLoading] = useState<number | null>(null);
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const todayKey = new Date().toDateString();
     const seenKey = "jenfit-morning-seen";
     const lastSeen = localStorage.getItem(seenKey);
@@ -149,9 +164,35 @@ export function DashboardClient({
     }
   }
 
-  const caloriePercent = today && today.caloriesGoal > 0 ? (today.caloriesConsumed / today.caloriesGoal) * 100 : 0;
-  const proteinPercent = today && today.proteinGoal > 0 ? (today.proteinConsumed / today.proteinGoal) * 100 : 0;
-  const waterPercent = today && today.waterGoalMl > 0 ? (waterMl / today.waterGoalMl) * 100 : 0;
+  // "Hasta el momento" — prorated by how much of the day has elapsed, so we
+  // never compare a full day's expenditure against a half-finished day.
+  const fractionOfDayElapsed = now ? (now.getHours() * 60 + now.getMinutes()) / 1440 : 1;
+  const caloriesBurnedSoFar = today ? today.baseExpenditure * fractionOfDayElapsed + today.exerciseCalories : 0;
+  const deficitSoFar = today ? today.caloriesConsumed - caloriesBurnedSoFar : 0;
+
+  const projection = useMemo(() => {
+    if (!today || !weightKg) return null;
+    return projectDailyBalance({
+      caloriesConsumedSoFar: today.caloriesConsumed,
+      calorieGoal: today.caloriesGoal,
+      baseExpenditure: today.baseExpenditure,
+      exerciseCaloriesSoFar: today.exerciseCalories,
+      targetDeficitKcal: today.targetDeficitKcal,
+      weightKg,
+    });
+  }, [today, weightKg]);
+
+  const suggestions = useMemo(() => {
+    if (!projection || !weightKg) return [];
+    return suggestWaysToCloseGap({ gapKcal: projection.gapToTargetKcal, weightKg });
+  }, [projection, weightKg]);
+
+  const projectionChartData = projection
+    ? [
+        { name: "Consumo proyectado", value: projection.projectedIntake, fill: "var(--color-coral)" },
+        { name: "Gasto proyectado", value: projection.projectedBurn, fill: "var(--color-mint)" },
+      ]
+    : [];
 
   const groupedMeals = MEAL_ORDER.map((type) => ({
     type,
@@ -161,125 +202,138 @@ export function DashboardClient({
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
-      {showMorning && (
-        <MorningModal greeting={greeting} onClose={() => setShowMorning(false)} />
-      )}
+      {showMorning && <MorningModal greeting={greeting} onClose={() => setShowMorning(false)} />}
 
-      {/* Level progress */}
-      <Card className="p-5 flex items-center gap-4 bg-[linear-gradient(135deg,var(--color-plum-soft),var(--color-surface))]">
-        <div className="w-12 h-12 rounded-full bg-[var(--color-plum)] text-white flex items-center justify-center shrink-0">
-          <Icon name="crown" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">
-            Nivel {level.level} · {level.name}
-          </p>
-          {upcomingLevel && (
-            <>
-              <ProgressBar
-                percent={((totalFitPoints - level.minPoints) / (upcomingLevel.minPoints - level.minPoints)) * 100}
-                heightPx={6}
-                className="mt-1.5"
-              />
-              <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                {upcomingLevel.minPoints - totalFitPoints} Fit Points para &quot;{upcomingLevel.name}&quot;
-              </p>
-            </>
-          )}
-        </div>
-      </Card>
-
-      {/* Main rings */}
-      <div className="grid sm:grid-cols-3 gap-4">
-        <Card className="p-5 flex flex-col items-center text-center gap-2">
-          <ProgressRing percent={caloriePercent} color="var(--color-plum)">
-            <div>
-              <p className="text-xl font-display font-semibold">{today?.caloriesConsumed ?? 0}</p>
-              <p className="text-[10px] text-[var(--color-text-muted)]">de {today?.caloriesGoal ?? 0} kcal</p>
-            </div>
-          </ProgressRing>
-          <p className="text-xs text-[var(--color-text-secondary)]">Calorías</p>
-        </Card>
-
-        <Card className="p-5 flex flex-col items-center text-center gap-2">
-          <ProgressRing percent={proteinPercent} color="var(--color-rose-strong)">
-            <div>
-              <p className="text-xl font-display font-semibold">{Math.round(today?.proteinConsumed ?? 0)}g</p>
-              <p className="text-[10px] text-[var(--color-text-muted)]">de {today?.proteinGoal ?? 0}g</p>
-            </div>
-          </ProgressRing>
-          <p className="text-xs text-[var(--color-text-secondary)]">Proteína</p>
-          {today && today.proteinCollagen > 0 && (
-            <p className="text-[10px] text-[var(--color-text-muted)]">
-              Incluye {Math.round(today.proteinCollagen)}g de colágeno
+      {daysSinceMeasured != null && daysSinceMeasured >= 7 && (
+        <Link href="/progress">
+          <Card className="p-4 flex items-center gap-3 border-[var(--color-coral)] hoverable">
+            <Icon name="ruler" className="text-[var(--color-coral)]" />
+            <p className="text-sm text-[var(--color-text-secondary)] flex-1">
+              Han pasado {daysSinceMeasured} días desde tu última medida — toca para registrar cintura, cadera,
+              cuello y peso y ver tu avance real.
             </p>
-          )}
-        </Card>
-
-        <Card className="p-5 flex flex-col items-center text-center gap-2">
-          <ProgressRing percent={waterPercent} color="var(--color-lavender-strong)">
-            <div>
-              <p className="text-xl font-display font-semibold">{(waterMl / 1000).toFixed(1)}L</p>
-              <p className="text-[10px] text-[var(--color-text-muted)]">de {((today?.waterGoalMl ?? 0) / 1000).toFixed(1)}L</p>
-            </div>
-          </ProgressRing>
-          <div className="flex gap-1.5">
-            {WATER_QUICK_ADDS.map((amount) => (
-              <button
-                key={amount}
-                onClick={() => addWater(amount)}
-                disabled={waterLoading !== null}
-                className="pressable text-[11px] px-2 py-1 rounded-full bg-[var(--color-bg-alt)] text-[var(--color-plum-strong)] font-medium disabled:opacity-50"
-              >
-                +{amount}
-              </button>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Balance + recommendation */}
-      {day && (
-        <Card className="p-5">
-          <div className="flex items-start gap-3">
-            <Icon name="balance" className="text-[var(--color-plum-strong)] mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">{balanceMessage(day)}</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                Gasto esperado hoy: {today?.expectedExpenditure} kcal (incluye {today?.exerciseCalories} kcal de
-                ejercicio registrado)
-              </p>
-            </div>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-2 mt-4">
-            {proteinMessage(day) && <Tip icon="protein" text={proteinMessage(day)!} />}
-            {waterMessage(day) && <Tip icon="water" text={waterMessage(day)!} />}
-            <Tip icon="strength" text={workoutMessage(day)} />
-          </div>
-        </Card>
+            <Icon name="chevronRight" className="text-[var(--color-text-muted)]" />
+          </Card>
+        </Link>
       )}
 
-      {/* Weekly summary */}
-      <Card className="p-5">
-        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Icon name="calendar" className="text-[var(--color-plum-strong)]" /> Resumen semanal
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <MiniStat label="Días en déficit" value={String(weekly.daysInDeficit)} />
-          <MiniStat label="Cerca de mantenimiento" value={String(weekly.daysNearMaintenance)} />
-          <MiniStat label="Días en superávit" value={String(weekly.daysInSurplus)} />
-          <MiniStat label="Déficit diario promedio" value={`${weekly.avgDailyDeficit} kcal`} />
-          <MiniStat label="Proteína promedio" value={`${weekly.avgProteinPercent}%`} />
-          <MiniStat label="Agua promedio" value={`${weekly.avgWaterPercent}%`} />
-          <MiniStat label="Racha de registro" value={`${loggingStreak} días`} />
-          <MiniStat label="Racha de agua" value={`${waterStreak} días`} />
+      {/* ---------------- Métricas principales ---------------- */}
+      <section>
+        <SectionTitle icon="target" title="Tu día, ahora mismo" />
+        <div className="grid grid-cols-2 gap-3">
+          <MetricRingCard
+            label="Consumidas hoy"
+            value={Math.round(today?.caloriesConsumed ?? 0)}
+            goal={Math.round(today?.caloriesGoal ?? 0)}
+            unit="kcal"
+            color="var(--color-plum)"
+          />
+          <MetricRingCard
+            label="Quemadas hasta ahora"
+            value={Math.round(caloriesBurnedSoFar)}
+            goal={Math.round(today?.expectedExpenditure ?? 0)}
+            unit="kcal"
+            color="var(--color-mint)"
+            hint="Metabolismo basal + ejercicio de hoy"
+          />
+          <BalanceCard deficitOrSurplus={Math.round(deficitSoFar)} />
+          <MetricRingCard
+            label="Proteína"
+            value={Math.round(today?.proteinConsumed ?? 0)}
+            goal={Math.round(today?.proteinGoal ?? 0)}
+            unit="g"
+            color="var(--color-rose-strong)"
+            hint={today && today.proteinCollagen > 0 ? `Incluye ${Math.round(today.proteinCollagen)}g de colágeno` : undefined}
+          />
         </div>
-        <p className="text-xs text-[var(--color-text-muted)] mt-3">
-          Tu constancia vale más que un día perfecto — priorizamos tu promedio semanal.
-        </p>
-      </Card>
 
-      {/* Today's meals */}
+        <div className="grid grid-cols-3 gap-3 mt-3">
+          <MetricRingCard
+            label="Grasa"
+            value={Math.round(today?.fatConsumed ?? 0)}
+            goal={Math.round(today?.fatGoal ?? 0)}
+            unit="g"
+            color="var(--color-coral)"
+            size="sm"
+          />
+          <MetricRingCard
+            label="Carbohidratos"
+            value={Math.round(today?.carbsConsumed ?? 0)}
+            goal={Math.round(today?.carbsGoal ?? 0)}
+            unit="g"
+            color="var(--color-lavender-strong)"
+            size="sm"
+          />
+          <Card className="p-4 flex flex-col items-center text-center gap-2">
+            <ProgressRing percent={today?.waterGoalMl ? (waterMl / today.waterGoalMl) * 100 : 0} size={78} strokeWidth={7} color="var(--color-lavender-strong)">
+              <span className="text-sm font-display font-semibold">{(waterMl / 1000).toFixed(1)}L</span>
+            </ProgressRing>
+            <p className="text-[11px] text-[var(--color-text-secondary)]">Agua</p>
+            <div className="flex gap-1">
+              {WATER_QUICK_ADDS.map((amount) => (
+                <button
+                  key={amount}
+                  onClick={() => addWater(amount)}
+                  disabled={waterLoading !== null}
+                  className="pressable text-[10px] px-1.5 py-1 rounded-full bg-[var(--color-bg-alt)] text-[var(--color-plum-strong)] font-medium disabled:opacity-50"
+                >
+                  +{amount}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* ---------------- Estimado del día ---------------- */}
+      {projection && (
+        <section>
+          <SectionTitle icon="chartSimple" title="Estimado para hoy" />
+          <Card className="p-5">
+            <p className="text-xs text-[var(--color-text-secondary)] mb-3">
+              Si mantienes el ritmo de hoy: consumirías ~{projection.projectedIntake} kcal y quemarías ~
+              {projection.projectedBurn} kcal (metabolismo + ejercicio).
+            </p>
+            <ResponsiveContainer width="100%" height={110}>
+              <BarChart data={projectionChartData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" />
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22}>
+                  {projectionChartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                  <LabelList dataKey="value" position="right" style={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+
+            <div className="flex items-center gap-2 mt-2 pt-3 border-t border-[var(--color-border)]">
+              <Icon
+                name={projection.onTrack ? "circleCheck" : "info"}
+                className={projection.onTrack ? "text-[var(--color-mint)]" : "text-[var(--color-coral)]"}
+              />
+              <p className="text-sm">
+                {projection.onTrack
+                  ? "Vas en camino a tu déficit objetivo de hoy."
+                  : `Te faltan ~${projection.gapToTargetKcal} kcal para llegar a tu déficit objetivo de hoy.`}
+              </p>
+            </div>
+
+            {suggestions.length > 0 && (
+              <div className="grid sm:grid-cols-3 gap-2 mt-3">
+                {suggestions.map((s) => (
+                  <div key={s.type} className="bg-[var(--color-bg-alt)] rounded-[var(--radius-md)] p-3">
+                    <p className="text-xs font-medium">{s.label}</p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">{s.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </section>
+      )}
+
+      {/* ---------------- Comidas de hoy ---------------- */}
       <Card className="p-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold flex items-center gap-2">
@@ -314,7 +368,53 @@ export function DashboardClient({
         )}
       </Card>
 
-      {/* Badges + challenges preview */}
+      {/* ---------------- Logro del día ---------------- */}
+      {day && (
+        <Card className="p-5">
+          <div className="flex items-start gap-3">
+            <Icon name="balance" className="text-[var(--color-plum-strong)] mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">{balanceMessage(day)}</p>
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                Gasto esperado hoy: {today?.expectedExpenditure} kcal (incluye {today?.exerciseCalories} kcal de
+                ejercicio registrado)
+              </p>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-2 mt-4">
+            {proteinMessage(day) && <Tip icon="protein" text={proteinMessage(day)!} />}
+            {waterMessage(day) && <Tip icon="water" text={waterMessage(day)!} />}
+            <Tip icon="strength" text={workoutMessage(day)} />
+          </div>
+        </Card>
+      )}
+
+      {/* ---------------- Resumen semanal ---------------- */}
+      <Card className="p-5">
+        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Icon name="calendar" className="text-[var(--color-plum-strong)]" /> Resumen semanal
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <MiniStat label="Días en déficit" value={String(weekly.daysInDeficit)} />
+          <MiniStat label="Cerca de mantenimiento" value={String(weekly.daysNearMaintenance)} />
+          <MiniStat label="Días en superávit" value={String(weekly.daysInSurplus)} />
+          <MiniStat label="Déficit diario promedio" value={`${weekly.avgDailyDeficit} kcal`} />
+          <MiniStat label="Proteína promedio" value={`${weekly.avgProteinPercent}%`} />
+          <MiniStat label="Agua promedio" value={`${weekly.avgWaterPercent}%`} />
+          <MiniStat label="Racha de registro" value={`${loggingStreak} días`} />
+          <MiniStat label="Racha de agua" value={`${waterStreak} días`} />
+        </div>
+        {bodyFatPercent != null && targetBodyFatPercent != null && (
+          <p className="text-xs text-[var(--color-text-muted)] mt-3">
+            % de grasa actual: {bodyFatPercent}% · meta: {targetBodyFatPercent}%
+          </p>
+        )}
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          Tu constancia vale más que un día perfecto — priorizamos tu promedio semanal.
+        </p>
+      </Card>
+
+      {/* ---------------- Logros recientes ---------------- */}
       <div className="grid sm:grid-cols-2 gap-4">
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
@@ -362,7 +462,12 @@ export function DashboardClient({
                       {uc.progress}/{uc.challenge.goalValue}
                     </span>
                   </div>
-                  <ProgressBar percent={(uc.progress / uc.challenge.goalValue) * 100} heightPx={6} />
+                  <div className="h-1.5 rounded-full bg-[var(--color-plum-soft)] overflow-hidden">
+                    <div
+                      className="h-full bg-[var(--color-plum)]"
+                      style={{ width: `${Math.min(100, (uc.progress / uc.challenge.goalValue) * 100)}%` }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -370,6 +475,72 @@ export function DashboardClient({
         </Card>
       </div>
     </div>
+  );
+}
+
+function SectionTitle({ icon, title }: { icon: IconName; title: string }) {
+  return (
+    <p className="text-sm font-semibold flex items-center gap-2 mb-3 text-[var(--color-text-secondary)]">
+      <Icon name={icon} className="text-[var(--color-plum-strong)]" /> {title}
+    </p>
+  );
+}
+
+function MetricRingCard({
+  label,
+  value,
+  goal,
+  unit,
+  color,
+  hint,
+  size = "md",
+}: {
+  label: string;
+  value: number;
+  goal: number;
+  unit: string;
+  color: string;
+  hint?: string;
+  size?: "md" | "sm";
+}) {
+  const percent = goal > 0 ? (value / goal) * 100 : 0;
+  const ringSize = size === "md" ? 96 : 78;
+  return (
+    <Card className="p-4 flex flex-col items-center text-center gap-2">
+      <ProgressRing percent={percent} size={ringSize} strokeWidth={size === "md" ? 9 : 7} color={color}>
+        <div>
+          <p className={size === "md" ? "text-lg font-display font-semibold" : "text-sm font-display font-semibold"}>
+            {value}
+            <span className="text-[10px] font-sans text-[var(--color-text-muted)]">{unit}</span>
+          </p>
+          <p className="text-[9px] text-[var(--color-text-muted)]">de {goal}{unit}</p>
+        </div>
+      </ProgressRing>
+      <p className="text-[11px] text-[var(--color-text-secondary)]">{label}</p>
+      {hint && <p className="text-[9px] text-[var(--color-text-muted)]">{hint}</p>}
+    </Card>
+  );
+}
+
+function BalanceCard({ deficitOrSurplus }: { deficitOrSurplus: number }) {
+  const isDeficit = deficitOrSurplus < 0;
+  const label = isDeficit ? "Déficit hoy" : deficitOrSurplus > 0 ? "Superávit hoy" : "En equilibrio";
+  const color = isDeficit ? "var(--color-mint)" : deficitOrSurplus > 0 ? "var(--color-coral)" : "var(--color-plum)";
+  return (
+    <Card className="p-4 flex flex-col items-center justify-center text-center gap-2">
+      <div
+        className="w-24 h-24 rounded-full flex items-center justify-center"
+        style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
+      >
+        <div>
+          <p className="text-xl font-display font-semibold" style={{ color }}>
+            {Math.abs(Math.round(deficitOrSurplus))}
+          </p>
+          <p className="text-[9px] text-[var(--color-text-muted)]">kcal</p>
+        </div>
+      </div>
+      <p className="text-[11px] text-[var(--color-text-secondary)]">{label}</p>
+    </Card>
   );
 }
 

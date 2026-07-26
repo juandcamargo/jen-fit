@@ -7,6 +7,7 @@ import { Icon } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { celebrate } from "@/lib/celebrate";
 
 const MEAL_LABELS: Record<string, string> = {
   breakfast: "Desayuno",
@@ -41,13 +42,56 @@ interface SummaryLike {
   proteinConsumed: number;
   proteinGoal: number;
   carbsConsumed: number;
+  carbsGoal: number;
   fatConsumed: number;
+  fatGoal: number;
 }
 
-export function FoodDayClient({ entries: initialEntries, summary }: { entries: Entry[]; summary: SummaryLike | null }) {
+interface KeySupplement {
+  id: string;
+  name: string;
+  dose: number;
+  unit: string;
+  isCreatine: boolean;
+  proteinType: string;
+  takenToday: boolean;
+}
+
+function addDaysToKey(dateKey: string, days: number): string {
+  const d = new Date(`${dateKey}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function FoodDayClient({
+  entries: initialEntries,
+  summary,
+  keySupplements: initialKeySupplements,
+  dateKey,
+  isToday,
+}: {
+  entries: Entry[];
+  summary: SummaryLike | null;
+  keySupplements: KeySupplement[];
+  dateKey: string;
+  isToday: boolean;
+}) {
   const router = useRouter();
   const [entries, setEntries] = useState(initialEntries);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [keySupplements, setKeySupplements] = useState(initialKeySupplements);
+
+  async function toggleSupplement(s: KeySupplement) {
+    const nextTaken = !s.takenToday;
+    setKeySupplements((prev) => prev.map((x) => (x.id === s.id ? { ...x, takenToday: nextTaken } : x)));
+    const res = await fetch("/api/supplements/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ supplementId: s.id, taken: nextTaken, date: dateKey }),
+    });
+    if (res.ok && nextTaken) celebrate();
+    router.refresh();
+  }
 
   async function handleDelete(id: string) {
     setDeletingId(id);
@@ -70,16 +114,43 @@ export function FoodDayClient({ entries: initialEntries, summary }: { entries: E
   const totalCarbs = entries.reduce((s, e) => s + e.carbs, 0);
   const totalFat = entries.reduce((s, e) => s + e.fat, 0);
 
+  const addHref = (meal?: string) => `/food/add?date=${dateKey}${meal ? `&meal=${meal}` : ""}`;
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl">Nutrición de hoy</h1>
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.push(`/food?date=${addDaysToKey(dateKey, -1)}`)} className="pressable text-[var(--color-text-secondary)] p-1.5">
+            <Icon name="chevronLeft" />
+          </button>
+          <div>
+            <h1 className="font-display text-xl">{isToday ? "Nutrición de hoy" : "Nutrición"}</h1>
+            {!isToday && (
+              <p className="text-xs text-[var(--color-text-muted)] capitalize">
+                {new Date(`${dateKey}T00:00:00`).toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => router.push(`/food?date=${addDaysToKey(dateKey, 1)}`)}
+            disabled={addDaysToKey(dateKey, 1) > new Date().toISOString().slice(0, 10)}
+            className="pressable text-[var(--color-text-secondary)] p-1.5 disabled:opacity-30"
+          >
+            <Icon name="chevronRight" />
+          </button>
+        </div>
         <Link href="/food/recipes">
           <Button variant="secondary" size="sm" icon="recipe">
             Recetas
           </Button>
         </Link>
       </div>
+
+      {!isToday && (
+        <Link href={`/food?date=${new Date().toISOString().slice(0, 10)}`} className="text-xs text-[var(--color-plum-strong)] hover:underline -mt-3">
+          Volver a hoy
+        </Link>
+      )}
 
       <Card className="p-5">
         <div className="flex justify-between text-sm mb-1.5">
@@ -92,18 +163,51 @@ export function FoodDayClient({ entries: initialEntries, summary }: { entries: E
 
         <div className="grid grid-cols-3 gap-3 mt-4">
           <MacroStat label="Proteína" value={totalProtein} goal={summary?.proteinGoal} unit="g" color="var(--color-rose-strong)" />
-          <MacroStat label="Carbohidratos" value={totalCarbs} unit="g" color="var(--color-lavender-strong)" />
-          <MacroStat label="Grasas" value={totalFat} unit="g" color="var(--color-coral)" />
+          <MacroStat label="Carbohidratos" value={totalCarbs} goal={summary?.carbsGoal} unit="g" color="var(--color-lavender-strong)" />
+          <MacroStat label="Grasas" value={totalFat} goal={summary?.fatGoal} unit="g" color="var(--color-coral)" />
         </div>
       </Card>
+
+      {keySupplements.length > 0 && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold flex items-center gap-2">
+              <Icon name="supplements" className="text-[var(--color-plum-strong)]" /> Suplementos
+            </p>
+            <Link href="/supplements" className="text-xs text-[var(--color-plum-strong)] hover:underline">
+              Gestionar
+            </Link>
+          </div>
+          <div className="flex gap-3">
+            {keySupplements.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => toggleSupplement(s)}
+                className={`pressable flex-1 flex flex-col items-center gap-1.5 py-3 rounded-[var(--radius-md)] border transition-colors duration-150 ${
+                  s.takenToday
+                    ? "border-[var(--color-mint)] bg-[var(--color-mint-soft)]"
+                    : "border-[var(--color-border)]"
+                }`}
+              >
+                <Icon name={s.isCreatine ? "creatine" : "collagen"} className={s.takenToday ? "text-[var(--color-mint)]" : "text-[var(--color-text-muted)]"} />
+                <span className="text-xs font-medium">{s.name}</span>
+                <span className="text-[10px] text-[var(--color-text-muted)]">
+                  {s.dose} {s.unit}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {groups.length === 0 ? (
         <Card className="p-8 text-center">
           <Icon name="nutrition" className="text-3xl text-[var(--color-text-muted)] mb-3" />
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-            Aún no registras comidas hoy. Cuando quieras, aquí está tu espacio.
+            {isToday ? "Aún no registras comidas hoy." : "No hay comidas registradas este día."} Cuando quieras, aquí
+            está tu espacio.
           </p>
-          <Link href="/food/add">
+          <Link href={addHref()}>
             <Button icon="add">Registrar comida</Button>
           </Link>
         </Card>
@@ -113,7 +217,7 @@ export function FoodDayClient({ entries: initialEntries, summary }: { entries: E
             <Card key={group.type} className="p-5">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-semibold">{group.label}</p>
-                <Link href={`/food/add?meal=${group.type}`} className="text-xs text-[var(--color-plum-strong)] hover:underline">
+                <Link href={addHref(group.type)} className="text-xs text-[var(--color-plum-strong)] hover:underline">
                   + Añadir
                 </Link>
               </div>
@@ -144,7 +248,7 @@ export function FoodDayClient({ entries: initialEntries, summary }: { entries: E
               </div>
             </Card>
           ))}
-          <Link href="/food/add">
+          <Link href={addHref()}>
             <Button icon="add" className="w-full">
               Registrar otra comida
             </Button>

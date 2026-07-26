@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Icon } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -23,17 +25,28 @@ interface Settings {
 
 const QUICK_ADDS = [250, 350, 500];
 
+function addDaysToKey(dateKey: string, days: number): string {
+  const d = new Date(`${dateKey}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export function WaterClient({
   logs: initialLogs,
   goalMl: initialGoal,
   settings,
   streak,
+  dateKey,
+  isToday,
 }: {
   logs: WaterLog[];
   goalMl: number;
   settings: Settings | null;
   streak: number;
+  dateKey: string;
+  isToday: boolean;
 }) {
+  const router = useRouter();
   const [logs, setLogs] = useState(initialLogs);
   const [goalMl, setGoalMl] = useState(initialGoal);
   const [customAmount, setCustomAmount] = useState("");
@@ -53,7 +66,7 @@ export function WaterClient({
     const res = await fetch("/api/water", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amountMl: amount }),
+      body: JSON.stringify({ amountMl: amount, date: dateKey }),
     });
     if (res.ok) {
       setLogs((prev) => [...prev, { id: crypto.randomUUID(), amountMl: amount, createdAt: new Date().toISOString() }]);
@@ -74,7 +87,31 @@ export function WaterClient({
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
-      <h1 className="font-display text-2xl">Hidratación</h1>
+      <div className="flex items-center gap-2">
+        <button onClick={() => router.push(`/water?date=${addDaysToKey(dateKey, -1)}`)} className="pressable text-[var(--color-text-secondary)] p-1.5">
+          <Icon name="chevronLeft" />
+        </button>
+        <div className="flex-1">
+          <h1 className="font-display text-2xl">{isToday ? "Hidratación" : "Hidratación"}</h1>
+          {!isToday && (
+            <p className="text-xs text-[var(--color-text-muted)] capitalize">
+              {new Date(`${dateKey}T00:00:00`).toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => router.push(`/water?date=${addDaysToKey(dateKey, 1)}`)}
+          disabled={addDaysToKey(dateKey, 1) > new Date().toISOString().slice(0, 10)}
+          className="pressable text-[var(--color-text-secondary)] p-1.5 disabled:opacity-30"
+        >
+          <Icon name="chevronRight" />
+        </button>
+      </div>
+      {!isToday && (
+        <Link href={`/water?date=${new Date().toISOString().slice(0, 10)}`} className="text-xs text-[var(--color-plum-strong)] hover:underline -mt-3">
+          Volver a hoy
+        </Link>
+      )}
 
       <Card className="p-6 flex flex-col items-center gap-4">
         <ProgressRing percent={percent} size={160} strokeWidth={12} color="var(--color-lavender-strong)">
@@ -121,9 +158,9 @@ export function WaterClient({
       </Card>
 
       <Card className="p-5">
-        <p className="text-sm font-semibold mb-3">Registros de hoy</p>
+        <p className="text-sm font-semibold mb-3">{isToday ? "Registros de hoy" : "Registros de este día"}</p>
         {logs.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-muted)]">Aún no registras agua hoy.</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Aún no hay agua registrada.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {logs.map((l) => (
@@ -136,31 +173,33 @@ export function WaterClient({
         )}
       </Card>
 
-      <Card className="p-5 flex flex-col gap-4">
-        <p className="text-sm font-semibold">Configuración</p>
-        <Input label="Meta diaria (ml)" type="number" value={goalMl} onChange={(e) => setGoalMl(Number(e.target.value))} />
+      {isToday && (
+        <Card className="p-5 flex flex-col gap-4">
+          <p className="text-sm font-semibold">Configuración</p>
+          <Input label="Meta diaria (ml)" type="number" value={goalMl} onChange={(e) => setGoalMl(Number(e.target.value))} />
 
-        <label className="flex items-center justify-between text-sm">
-          Recordatorios activados
-          <input type="checkbox" checked={remindersOn} onChange={(e) => setRemindersOn(e.target.checked)} />
-        </label>
+          <label className="flex items-center justify-between text-sm">
+            Recordatorios activados
+            <input type="checkbox" checked={remindersOn} onChange={(e) => setRemindersOn(e.target.checked)} />
+          </label>
 
-        {remindersOn && (
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Hora de inicio" type="time" value={reminderStart} onChange={(e) => setReminderStart(e.target.value)} />
-            <Input label="Hora de fin" type="time" value={reminderEnd} onChange={(e) => setReminderEnd(e.target.value)} />
-          </div>
-        )}
+          {remindersOn && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Hora de inicio" type="time" value={reminderStart} onChange={(e) => setReminderStart(e.target.value)} />
+              <Input label="Hora de fin" type="time" value={reminderEnd} onChange={(e) => setReminderEnd(e.target.value)} />
+            </div>
+          )}
 
-        <label className="flex items-center justify-between text-sm">
-          Pausa nocturna
-          <input type="checkbox" checked={nightPause} onChange={(e) => setNightPause(e.target.checked)} />
-        </label>
+          <label className="flex items-center justify-between text-sm">
+            Pausa nocturna
+            <input type="checkbox" checked={nightPause} onChange={(e) => setNightPause(e.target.checked)} />
+          </label>
 
-        <Button onClick={saveSettings} loading={loading} variant="secondary">
-          Guardar configuración
-        </Button>
-      </Card>
+          <Button onClick={saveSettings} loading={loading} variant="secondary">
+            Guardar configuración
+          </Button>
+        </Card>
+      )}
     </div>
   );
 }

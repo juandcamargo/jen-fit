@@ -56,6 +56,21 @@ export async function POST(request: Request) {
         bodyFatPercent,
       },
     })
+
+    // Only refresh the profile's "latest known" snapshot if this measurement
+    // isn't older than what's already on file.
+    if (!profile?.lastMeasuredAt || day >= profile.lastMeasuredAt) {
+      await prisma.profile.update({
+        where: { userId: session.user.id },
+        data: {
+          waistCm: input.waistCm,
+          hipCm: input.hipCm,
+          neckCm: input.neckCm,
+          bodyFatPercent,
+          lastMeasuredAt: day,
+        },
+      })
+    }
   }
 
   const result = await recomputeDailySummary(session.user.id, date)

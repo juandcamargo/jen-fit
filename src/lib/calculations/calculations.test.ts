@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { calculateBmr, ageFromBirthDate } from "./bmr"
 import { estimateTdee, calibrateTdee, estimateNeatActivityFactor } from "./tdee"
-import { calculateCalorieGoal, calculateProteinGoal, splitProteinSources } from "./goals"
+import { calculateCalorieGoal, calculateProteinGoal, calculateMacroGoals, splitProteinSources } from "./goals"
 import { caloriesFromMacros, checkMacroConsistency } from "./macros"
 import { estimateBodyFatPercent } from "./bodyFat"
 import { estimateStrengthMet, estimateStrengthCalories } from "./strengthMet"
@@ -74,11 +74,19 @@ describe("calibrateTdee", () => {
 })
 
 describe("calculateCalorieGoal", () => {
-  it("applies a moderate deficit", () => {
-    const result = calculateCalorieGoal({ tdee: 2000, bmr: 1400, deficitPreference: "moderate" })
-    expect(result.deficitKcal).toBe(325) // midpoint of 250-400
-    expect(result.goalCalories).toBe(1675)
+  it("applies a 17% deficit at a moderate pace (the default for weight/fat loss)", () => {
+    const result = calculateCalorieGoal({ tdee: 2000, bmr: 1400, deficitPreference: "moderate", pace: "moderate" })
+    expect(result.deficitPercent).toBeCloseTo(0.17, 3)
+    expect(result.deficitKcal).toBe(340) // 17% of 2000
+    expect(result.goalCalories).toBe(1660)
     expect(result.wasAdjusted).toBe(false)
+  })
+
+  it("uses a smaller percentage for a gradual pace and a larger one for faster", () => {
+    const gradual = calculateCalorieGoal({ tdee: 2000, bmr: 1400, deficitPreference: "moderate", pace: "gradual" })
+    const faster = calculateCalorieGoal({ tdee: 2000, bmr: 1400, deficitPreference: "moderate", pace: "faster" })
+    expect(gradual.deficitPercent).toBeLessThan(0.17)
+    expect(faster.deficitPercent).toBeGreaterThan(0.17)
   })
 
   it("never lets the goal drop below the safety floor", () => {
@@ -86,7 +94,7 @@ describe("calculateCalorieGoal", () => {
       tdee: 1300,
       bmr: 1250,
       deficitPreference: "custom",
-      customDeficitKcal: 500,
+      customDeficitPercent: 0.3,
     })
     expect(result.goalCalories).toBeGreaterThanOrEqual(1200)
     expect(result.wasAdjusted).toBe(true)
@@ -103,6 +111,21 @@ describe("calculateProteinGoal", () => {
   it("clamps the factor to the safe 1.6-2.2 range", () => {
     expect(calculateProteinGoal({ weightKg: 65, proteinFactor: 3 }).factorUsed).toBe(2.2)
     expect(calculateProteinGoal({ weightKg: 65, proteinFactor: 1 }).factorUsed).toBe(1.6)
+  })
+})
+
+describe("calculateMacroGoals", () => {
+  it("splits remaining calories between fat (~30%) and carbs", () => {
+    const result = calculateMacroGoals({ goalCalories: 1660, proteinGoalG: 117 })
+    expect(result.fatGoalG).toBe(Math.round((1660 * 0.3) / 9))
+    const proteinCals = 117 * 4
+    const fatCals = result.fatGoalG * 9
+    expect(result.carbsGoalG).toBe(Math.round((1660 - proteinCals - fatCals) / 4))
+  })
+
+  it("never returns negative carbs even with a very high protein target", () => {
+    const result = calculateMacroGoals({ goalCalories: 1200, proteinGoalG: 250 })
+    expect(result.carbsGoalG).toBeGreaterThanOrEqual(0)
   })
 })
 

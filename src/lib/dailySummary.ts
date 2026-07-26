@@ -8,8 +8,10 @@ import {
   estimateOnboardingActivityFactor,
   calculateCalorieGoal,
   calculateProteinGoal,
+  calculateMacroGoals,
   calculateDailyBalance,
   type ActivityLevel,
+  type Pace,
 } from "@/lib/calculations"
 import { evaluateDailyPoints } from "@/lib/gamification/points"
 import { updateStreak } from "@/lib/gamification/streaks"
@@ -62,9 +64,11 @@ export async function recomputeDailySummary(userId: string, date: Date): Promise
     tdee,
     bmr,
     deficitPreference: profile.deficitPreference as "soft" | "moderate" | "custom",
-    customDeficitKcal: profile.customDeficitKcal,
+    pace: profile.pace as Pace,
+    customDeficitPercent: profile.customDeficitPercent,
   })
   const proteinResult = calculateProteinGoal({ weightKg, proteinFactor: profile.proteinFactor })
+  const macroResult = calculateMacroGoals({ goalCalories: goalResult.goalCalories, proteinGoalG: proteinResult.proteinGoalG })
 
   const [foodEntries, waterAgg, strengthWorkouts, cardioSessions, weightLoggedToday, supplementLogs] =
     await Promise.all([
@@ -86,6 +90,8 @@ export async function recomputeDailySummary(userId: string, date: Date): Promise
   // "collagen" — separate from complete protein sources.
   const supplementCalories = supplementLogs.reduce((s, l) => s + (l.supplement.isCreatine ? 0 : l.supplement.calories), 0)
   const supplementProtein = supplementLogs.reduce((s, l) => s + l.supplement.proteinG, 0)
+  const supplementFat = supplementLogs.reduce((s, l) => s + l.supplement.fatG, 0)
+  const supplementCarbs = supplementLogs.reduce((s, l) => s + l.supplement.carbsG, 0)
   const supplementCollagenProtein = supplementLogs
     .filter((l) => l.supplement.proteinType === "collagen")
     .reduce((s, l) => s + l.supplement.proteinG, 0)
@@ -93,8 +99,8 @@ export async function recomputeDailySummary(userId: string, date: Date): Promise
   const caloriesConsumed = foodEntries.reduce((s, e) => s + e.calories, 0) + supplementCalories
   const proteinConsumed = foodEntries.reduce((s, e) => s + e.protein, 0) + supplementProtein
   const proteinCollagen = foodEntries.reduce((s, e) => s + e.proteinCollagen, 0) + supplementCollagenProtein
-  const carbsConsumed = foodEntries.reduce((s, e) => s + e.carbs, 0)
-  const fatConsumed = foodEntries.reduce((s, e) => s + e.fat, 0)
+  const carbsConsumed = foodEntries.reduce((s, e) => s + e.carbs, 0) + supplementCarbs
+  const fatConsumed = foodEntries.reduce((s, e) => s + e.fat, 0) + supplementFat
   const fiberConsumed = foodEntries.reduce((s, e) => s + e.fiber, 0)
   const waterConsumedMl = waterAgg._sum.amountMl ?? 0
 
@@ -117,7 +123,10 @@ export async function recomputeDailySummary(userId: string, date: Date): Promise
 
   const goalsCompleted = {
     protein: proteinConsumed >= proteinResult.proteinGoalG,
+    fat: macroResult.fatGoalG > 0 && fatConsumed <= macroResult.fatGoalG * 1.1,
+    carbs: macroResult.carbsGoalG > 0 && carbsConsumed <= macroResult.carbsGoalG * 1.1,
     water: profile.waterGoalMl > 0 && waterConsumedMl >= profile.waterGoalMl,
+    deficit: balance.deficitOrSurplus < 0,
     workout: completedWorkout,
     logging: foodEntries.length > 0,
   }
@@ -137,52 +146,35 @@ export async function recomputeDailySummary(userId: string, date: Date): Promise
     deficitOrSurplus: balance.deficitOrSurplus,
   })
 
+  const sharedData = {
+    caloriesConsumed,
+    caloriesGoal: goalResult.goalCalories,
+    targetDeficitKcal: goalResult.deficitKcal,
+    bmr,
+    baseExpenditure,
+    exerciseCalories: balance.exerciseCalories,
+    expectedExpenditure: balance.expectedExpenditure,
+    proteinConsumed,
+    proteinGoal: proteinResult.proteinGoalG,
+    proteinCollagen,
+    carbsConsumed,
+    carbsGoal: macroResult.carbsGoalG,
+    fatConsumed,
+    fatGoal: macroResult.fatGoalG,
+    fiberConsumed,
+    waterConsumedMl,
+    waterGoalMl: profile.waterGoalMl,
+    weightKg: weightLoggedToday?.weightKg,
+    deficitOrSurplus: balance.deficitOrSurplus,
+    diffFromGoal: balance.diffFromGoal,
+    fitPointsEarned: points.totalPoints,
+    goalsCompletedJson: JSON.stringify(goalsCompleted),
+  }
+
   const summary = await prisma.dailySummary.upsert({
     where: { userId_date: { userId, date: day } },
-    create: {
-      userId,
-      date: day,
-      caloriesConsumed,
-      caloriesGoal: goalResult.goalCalories,
-      bmr,
-      baseExpenditure,
-      exerciseCalories: balance.exerciseCalories,
-      expectedExpenditure: balance.expectedExpenditure,
-      proteinConsumed,
-      proteinGoal: proteinResult.proteinGoalG,
-      proteinCollagen,
-      carbsConsumed,
-      fatConsumed,
-      fiberConsumed,
-      waterConsumedMl,
-      waterGoalMl: profile.waterGoalMl,
-      weightKg: weightLoggedToday?.weightKg,
-      deficitOrSurplus: balance.deficitOrSurplus,
-      diffFromGoal: balance.diffFromGoal,
-      fitPointsEarned: points.totalPoints,
-      goalsCompletedJson: JSON.stringify(goalsCompleted),
-    },
-    update: {
-      caloriesConsumed,
-      caloriesGoal: goalResult.goalCalories,
-      bmr,
-      baseExpenditure,
-      exerciseCalories: balance.exerciseCalories,
-      expectedExpenditure: balance.expectedExpenditure,
-      proteinConsumed,
-      proteinGoal: proteinResult.proteinGoalG,
-      proteinCollagen,
-      carbsConsumed,
-      fatConsumed,
-      fiberConsumed,
-      waterConsumedMl,
-      waterGoalMl: profile.waterGoalMl,
-      weightKg: weightLoggedToday?.weightKg,
-      deficitOrSurplus: balance.deficitOrSurplus,
-      diffFromGoal: balance.diffFromGoal,
-      fitPointsEarned: points.totalPoints,
-      goalsCompletedJson: JSON.stringify(goalsCompleted),
-    },
+    create: { userId, date: day, ...sharedData },
+    update: sharedData,
   })
 
   await Promise.all([

@@ -15,35 +15,48 @@ const ACTIVITY_LABELS: Record<string, string> = {
   very_active: "Muy activa",
 };
 
+const PACE_LABELS: Record<string, string> = {
+  gradual: "Muy gradual (~12% déficit)",
+  moderate: "Moderado (17% déficit)",
+  faster: "Más rápido (~22% déficit)",
+};
+
 export function ProfileClient({
   email,
   name,
-  targetWeightKg,
+  bodyFatPercent,
+  targetBodyFatPercent,
+  waistCm,
+  lastMeasuredAt,
   activityLevel,
   avgDailySteps,
   trainingDaysPerWeek,
+  pace,
   proteinFactor,
   waterGoalMl,
-  deficitPreference,
   calculatedBmr,
   calculatedTdee,
 }: {
   email: string;
   name: string;
-  targetWeightKg: number | null;
+  bodyFatPercent: number | null;
+  targetBodyFatPercent: number | null;
+  waistCm: number | null;
+  lastMeasuredAt: string | null;
   activityLevel: string;
   avgDailySteps: number | null;
   trainingDaysPerWeek: number | null;
+  pace: string;
   proteinFactor: number;
   waterGoalMl: number;
-  deficitPreference: string;
   calculatedBmr: number | null;
   calculatedTdee: number | null;
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    targetWeightKg: targetWeightKg ?? 0,
+    targetBodyFatPercent: targetBodyFatPercent ?? 0,
     activityLevel,
+    pace,
     trainingDaysPerWeek: trainingDaysPerWeek ?? 0,
     proteinFactor,
     waterGoalMl,
@@ -53,6 +66,14 @@ export function ProfileClient({
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+
+  const daysSinceMeasured = lastMeasuredAt
+    ? Math.floor((Date.now() - new Date(lastMeasuredAt).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   async function handleSave() {
     setSaving(true);
@@ -84,6 +105,27 @@ export function ProfileClient({
     await signOut({ callbackUrl: "/" });
   }
 
+  async function handleReset() {
+    setResetting(true);
+    setResetError(null);
+    const res = await fetch("/api/account/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: resetPassword }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setResetError(data.error ?? "No pudimos restablecer tus datos.");
+      setResetting(false);
+      return;
+    }
+    setResetting(false);
+    setResetDone(true);
+    setResetPassword("");
+    router.push("/dashboard");
+    router.refresh();
+  }
+
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <h1 className="font-display text-2xl">Tu perfil</h1>
@@ -97,15 +139,26 @@ export function ProfileClient({
             <span>TDEE: {Math.round(calculatedTdee)} kcal</span>
           </div>
         )}
+        <div className="flex gap-4 text-xs text-[var(--color-text-secondary)] bg-[var(--color-bg-alt)] rounded-[var(--radius-md)] p-3">
+          <span>% grasa actual: {bodyFatPercent != null ? `${bodyFatPercent}%` : "—"}</span>
+          <span>Cintura: {waistCm != null ? `${waistCm} cm` : "—"}</span>
+        </div>
+        {daysSinceMeasured != null && daysSinceMeasured >= 7 && (
+          <p className="text-xs text-[var(--color-coral)] bg-[var(--color-coral-soft)] rounded-[var(--radius-md)] p-3 flex items-center gap-2">
+            <Icon name="ruler" />
+            Han pasado {daysSinceMeasured} días desde tu última medida — es buen momento para volver a medirte.
+          </p>
+        )}
       </Card>
 
       <Card className="p-5 flex flex-col gap-4">
         <p className="text-sm font-semibold">Metas</p>
         <Input
-          label="Peso objetivo (kg)"
+          label="% de grasa objetivo"
           type="number"
-          value={form.targetWeightKg}
-          onChange={(e) => setForm({ ...form, targetWeightKg: Number(e.target.value) })}
+          step="0.5"
+          value={form.targetBodyFatPercent}
+          onChange={(e) => setForm({ ...form, targetBodyFatPercent: Number(e.target.value) })}
         />
 
         <div>
@@ -117,6 +170,25 @@ export function ProfileClient({
                 onClick={() => setForm({ ...form, activityLevel: value })}
                 className={`pressable py-2 rounded-[var(--radius-md)] border text-xs ${
                   form.activityLevel === value ? "border-[var(--color-plum)] bg-[var(--color-plum-soft)]" : "border-[var(--color-border)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">
+            Ritmo del déficit calórico (tu métrica principal)
+          </p>
+          <div className="flex flex-col gap-2">
+            {Object.entries(PACE_LABELS).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setForm({ ...form, pace: value })}
+                className={`pressable py-2 px-3 rounded-[var(--radius-md)] border text-xs text-left ${
+                  form.pace === value ? "border-[var(--color-plum)] bg-[var(--color-plum-soft)]" : "border-[var(--color-border)]"
                 }`}
               >
                 {label}
@@ -160,6 +232,31 @@ export function ProfileClient({
             Exportar mis datos
           </Button>
         </a>
+      </Card>
+
+      <Card id="reset" className="p-5 flex flex-col gap-3 border-[var(--color-coral)]">
+        <p className="text-sm font-semibold text-[var(--color-coral)]">Restablecer datos</p>
+        <p className="text-xs text-[var(--color-text-secondary)]">
+          Borra tu historial (comidas, agua, ejercicio, peso, suplementos, rachas, insignias, retos y puntos), pero
+          mantiene tu cuenta y tus metas configuradas. Confirma tu contraseña para continuar.
+        </p>
+        <Input
+          type="password"
+          placeholder="Contraseña"
+          icon="lock"
+          value={resetPassword}
+          onChange={(e) => setResetPassword(e.target.value)}
+        />
+        {resetError && <p className="text-xs text-[var(--color-error)]">{resetError}</p>}
+        {resetDone && <p className="text-xs text-[var(--color-mint)]">Datos restablecidos.</p>}
+        <Button
+          onClick={handleReset}
+          loading={resetting}
+          disabled={!resetPassword}
+          className="!bg-[var(--color-coral)] text-white"
+        >
+          Restablecer mis datos
+        </Button>
       </Card>
 
       <Card id="delete" className="p-5 flex flex-col gap-3 border-[var(--color-error)]">

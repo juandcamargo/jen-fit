@@ -18,9 +18,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/icons/Icon";
 
-interface WeightPoint {
+interface MeasurementPoint {
   date: string;
-  weightKg: number;
+  waistCm: number | null;
+  bodyFatPercent: number | null;
 }
 interface SummaryPoint {
   date: string;
@@ -49,35 +50,44 @@ function movingAverage(points: { date: string; value: number }[], window: number
 }
 
 export function ProgressClient({
-  weightLogs,
+  measurements,
   summaries,
-  targetWeightKg,
+  targetBodyFatPercent,
   tdeeConfidence,
   calculatedTdee,
   tdeeLastCalibratedAt,
 }: {
-  weightLogs: WeightPoint[];
+  measurements: MeasurementPoint[];
   summaries: SummaryPoint[];
-  targetWeightKg: number | null;
+  targetBodyFatPercent: number | null;
   tdeeConfidence: string | null;
   calculatedTdee: number | null;
   tdeeLastCalibratedAt: string | null;
 }) {
   const router = useRouter();
   const [rangeDays, setRangeDays] = useState(30);
-  const [showWeightForm, setShowWeightForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [weightInput, setWeightInput] = useState("");
+  const [waistInput, setWaistInput] = useState("");
+  const [hipInput, setHipInput] = useState("");
+  const [neckInput, setNeckInput] = useState("");
   const [calibrating, setCalibrating] = useState(false);
   const [calibrateMsg, setCalibrateMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const cutoff = Date.now() - rangeDays * 24 * 60 * 60 * 1000;
 
-  const weightSeries = useMemo(() => {
-    const filtered = weightLogs.filter((w) => new Date(w.date).getTime() >= cutoff);
-    const raw = filtered.map((w) => ({ date: w.date.slice(5, 10), value: w.weightKg }));
-    return movingAverage(raw, 7);
-  }, [weightLogs, cutoff]);
+  const bodyFatSeries = useMemo(() => {
+    const filtered = measurements.filter((m) => m.bodyFatPercent != null && new Date(m.date).getTime() >= cutoff);
+    const raw = filtered.map((m) => ({ date: m.date.slice(5, 10), value: m.bodyFatPercent as number }));
+    return movingAverage(raw, 3);
+  }, [measurements, cutoff]);
+
+  const waistSeries = useMemo(() => {
+    const filtered = measurements.filter((m) => m.waistCm != null && new Date(m.date).getTime() >= cutoff);
+    return filtered.map((m) => ({ date: m.date.slice(5, 10), value: m.waistCm as number }));
+  }, [measurements, cutoff]);
 
   const deficitSeries = useMemo(
     () =>
@@ -99,17 +109,30 @@ export function ProgressClient({
         )
       : 0;
 
-  async function saveWeight() {
-    if (!weightInput) return;
+  async function saveMeasurements() {
+    if (!weightInput || !waistInput || !hipInput || !neckInput) return;
     setSaving(true);
-    await fetch("/api/weight", {
+    setSaveError(null);
+    const res = await fetch("/api/weight", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ weightKg: Number(weightInput) }),
+      body: JSON.stringify({
+        weightKg: Number(weightInput),
+        waistCm: Number(waistInput),
+        hipCm: Number(hipInput),
+        neckCm: Number(neckInput),
+      }),
     });
     setSaving(false);
-    setShowWeightForm(false);
+    if (!res.ok) {
+      setSaveError("No pudimos guardar tus medidas.");
+      return;
+    }
+    setShowForm(false);
     setWeightInput("");
+    setWaistInput("");
+    setHipInput("");
+    setNeckInput("");
     router.refresh();
   }
 
@@ -127,16 +150,26 @@ export function ProgressClient({
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl">Tu progreso</h1>
-        <Button size="sm" icon="add" onClick={() => setShowWeightForm((v) => !v)}>
-          Registrar peso
+        <Button size="sm" icon="ruler" onClick={() => setShowForm((v) => !v)}>
+          Registrar medidas
         </Button>
       </div>
 
-      {showWeightForm && (
-        <Card className="p-4 flex gap-2 items-end">
-          <Input label="Peso actual (kg)" type="number" value={weightInput} onChange={(e) => setWeightInput(e.target.value)} />
-          <Button onClick={saveWeight} loading={saving}>
-            Guardar
+      {showForm && (
+        <Card className="p-5 flex flex-col gap-3">
+          <p className="text-xs text-[var(--color-text-secondary)]">
+            Cintura a la altura del ombligo, cadera y cuello — para recalcular tu % de grasa. También pedimos tu
+            peso porque tu metabolismo (BMR/TDEE) depende de él, aunque no sea tu métrica principal.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Peso (kg)" type="number" step="0.1" value={weightInput} onChange={(e) => setWeightInput(e.target.value)} />
+            <Input label="Cintura (cm)" type="number" step="0.1" value={waistInput} onChange={(e) => setWaistInput(e.target.value)} />
+            <Input label="Cadera (cm)" type="number" step="0.1" value={hipInput} onChange={(e) => setHipInput(e.target.value)} />
+            <Input label="Cuello (cm)" type="number" step="0.1" value={neckInput} onChange={(e) => setNeckInput(e.target.value)} />
+          </div>
+          {saveError && <p className="text-xs text-[var(--color-error)]">{saveError}</p>}
+          <Button onClick={saveMeasurements} loading={saving}>
+            Guardar medidas
           </Button>
         </Card>
       )}
@@ -158,23 +191,42 @@ export function ProgressClient({
       </div>
 
       <Card className="p-5">
-        <p className="text-sm font-semibold mb-3">Peso (promedio móvil de 7 días)</p>
-        {weightSeries.length < 2 ? (
+        <p className="text-sm font-semibold mb-3">% de grasa corporal</p>
+        {bodyFatSeries.length < 2 ? (
           <p className="text-sm text-[var(--color-text-muted)] py-8 text-center">
-            Registra tu peso algunos días más para ver la tendencia.
+            Registra tus medidas algunas veces más para ver la tendencia.
           </p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={weightSeries}>
+            <LineChart data={bodyFatSeries}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" />
               <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" width={40} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Line type="monotone" dataKey="value" stroke="var(--color-plum)" strokeWidth={2} dot={false} name="Peso (kg)" />
+              <Line type="monotone" dataKey="value" stroke="var(--color-plum)" strokeWidth={2} dot={{ r: 3 }} name="% grasa" />
             </LineChart>
           </ResponsiveContainer>
         )}
-        {targetWeightKg && <p className="text-xs text-[var(--color-text-muted)] mt-2">Meta: {targetWeightKg} kg</p>}
+        {targetBodyFatPercent && <p className="text-xs text-[var(--color-text-muted)] mt-2">Meta: {targetBodyFatPercent}%</p>}
+      </Card>
+
+      <Card className="p-5">
+        <p className="text-sm font-semibold mb-3">Cintura (a la altura del ombligo)</p>
+        {waistSeries.length < 2 ? (
+          <p className="text-sm text-[var(--color-text-muted)] py-8 text-center">
+            Registra tu cintura algunas veces más para ver la tendencia.
+          </p>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={waistSeries}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" />
+              <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" width={40} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Line type="monotone" dataKey="value" stroke="var(--color-lavender-strong)" strokeWidth={2} dot={{ r: 3 }} name="Cintura (cm)" />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </Card>
 
       <Card className="p-5">

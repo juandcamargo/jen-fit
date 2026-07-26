@@ -12,6 +12,8 @@ import {
   estimateTdee,
   calculateCalorieGoal,
   calculateProteinGoal,
+  calculateMacroGoals,
+  estimateBodyFatPercent,
   type ActivityLevel,
 } from "@/lib/calculations";
 
@@ -22,7 +24,10 @@ interface FormState {
   birthDate: string;
   heightCm: string;
   currentWeightKg: string;
-  targetWeightKg: string;
+  waistCm: string;
+  hipCm: string;
+  neckCm: string;
+  targetBodyFatPercent: string;
   mainGoal: MainGoal | null;
   activityLevel: ActivityLevel | null;
   avgDailySteps: string;
@@ -37,7 +42,10 @@ const INITIAL_STATE: FormState = {
   birthDate: "",
   heightCm: "",
   currentWeightKg: "",
-  targetWeightKg: "",
+  waistCm: "",
+  hipCm: "",
+  neckCm: "",
+  targetBodyFatPercent: "",
   mainGoal: null,
   activityLevel: null,
   avgDailySteps: "",
@@ -83,9 +91,9 @@ const TRAINING_TYPES = [
 ];
 
 const PACE_OPTIONS: { value: Pace; label: string; description: string }[] = [
-  { value: "gradual", label: "Muy gradual", description: "Déficit suave, ritmo cómodo" },
-  { value: "moderate", label: "Moderado", description: "El equilibrio recomendado para la mayoría" },
-  { value: "faster", label: "Más rápido", description: "Dentro de límites saludables" },
+  { value: "gradual", label: "Muy gradual", description: "Déficit suave (~12% del TDEE), ritmo cómodo" },
+  { value: "moderate", label: "Moderado", description: "Déficit del 17% del TDEE — recomendado para la mayoría" },
+  { value: "faster", label: "Más rápido", description: "Déficit ~22% del TDEE, dentro de límites saludables" },
 ];
 
 export function OnboardingWizard({ name }: { name: string }) {
@@ -109,10 +117,19 @@ export function OnboardingWizard({ name }: { name: string }) {
     setStep((s) => Math.max(0, s - 1));
   }
 
+  const currentBodyFatPercent = useMemo(() => {
+    const heightCm = parseFloat(form.heightCm);
+    const waistCm = parseFloat(form.waistCm);
+    const hipCm = parseFloat(form.hipCm);
+    const neckCm = parseFloat(form.neckCm);
+    if (!heightCm || !waistCm || !hipCm || !neckCm) return null;
+    return estimateBodyFatPercent({ waistCm, hipCm, neckCm, heightCm });
+  }, [form.heightCm, form.waistCm, form.hipCm, form.neckCm]);
+
   const preview = useMemo(() => {
     const heightCm = parseFloat(form.heightCm);
     const currentWeightKg = parseFloat(form.currentWeightKg);
-    if (!form.birthDate || !heightCm || !currentWeightKg || !form.activityLevel) return null;
+    if (!form.birthDate || !heightCm || !currentWeightKg || !form.activityLevel || !form.pace) return null;
 
     const age = ageFromBirthDate(new Date(form.birthDate));
     const bmr = calculateBmr({ weightKg: currentWeightKg, heightCm, age });
@@ -122,23 +139,31 @@ export function OnboardingWizard({ name }: { name: string }) {
       avgDailySteps: form.avgDailySteps ? Number(form.avgDailySteps) : undefined,
       trainingDaysPerWeek: form.trainingDaysPerWeek,
     });
-    const deficitPreference = form.pace === "gradual" ? "soft" : form.pace === "faster" ? "custom" : "moderate";
     const goal = calculateCalorieGoal({
       tdee: tdee.tdeeMid,
       bmr,
-      deficitPreference,
-      customDeficitKcal: form.pace === "faster" ? 450 : undefined,
+      deficitPreference: "moderate",
+      pace: form.pace,
     });
     const protein = calculateProteinGoal({ weightKg: currentWeightKg, proteinFactor: form.proteinFactor });
+    const macros = calculateMacroGoals({ goalCalories: goal.goalCalories, proteinGoalG: protein.proteinGoalG });
     const suggestedWater = Math.min(3500, Math.max(1500, Math.round(currentWeightKg * 35)));
 
-    return { bmr, tdee, goal, protein, suggestedWater };
+    return { bmr, tdee, goal, protein, macros, suggestedWater };
   }, [form]);
 
   const canProceed = (() => {
     switch (step) {
       case 0:
-        return !!form.birthDate && !!form.heightCm && !!form.currentWeightKg && !!form.targetWeightKg;
+        return (
+          !!form.birthDate &&
+          !!form.heightCm &&
+          !!form.currentWeightKg &&
+          !!form.waistCm &&
+          !!form.hipCm &&
+          !!form.neckCm &&
+          !!form.targetBodyFatPercent
+        );
       case 1:
         return !!form.mainGoal;
       case 2:
@@ -163,7 +188,10 @@ export function OnboardingWizard({ name }: { name: string }) {
         birthDate: form.birthDate,
         heightCm: parseFloat(form.heightCm),
         currentWeightKg: parseFloat(form.currentWeightKg),
-        targetWeightKg: parseFloat(form.targetWeightKg),
+        waistCm: parseFloat(form.waistCm),
+        hipCm: parseFloat(form.hipCm),
+        neckCm: parseFloat(form.neckCm),
+        targetBodyFatPercent: parseFloat(form.targetBodyFatPercent),
         mainGoal: form.mainGoal,
         activityLevel: form.activityLevel,
         avgDailySteps: form.avgDailySteps ? Number(form.avgDailySteps) : undefined,
@@ -240,13 +268,58 @@ export function OnboardingWizard({ name }: { name: string }) {
                       step="0.1"
                       value={form.currentWeightKg}
                       onChange={(e) => update("currentWeightKg", e.target.value)}
+                      hint="Lo usamos para calcular tu metabolismo — no será tu métrica principal"
                     />
+
+                    <div className="pt-2 border-t border-[var(--color-border)]">
+                      <p className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
+                        Medidas para estimar tu % de grasa (método Navy)
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <Input
+                          label="Cintura (cm)"
+                          type="number"
+                          step="0.1"
+                          value={form.waistCm}
+                          onChange={(e) => update("waistCm", e.target.value)}
+                          hint="A la altura del ombligo"
+                        />
+                        <Input
+                          label="Cadera (cm)"
+                          type="number"
+                          step="0.1"
+                          value={form.hipCm}
+                          onChange={(e) => update("hipCm", e.target.value)}
+                        />
+                        <Input
+                          label="Cuello (cm)"
+                          type="number"
+                          step="0.1"
+                          value={form.neckCm}
+                          onChange={(e) => update("neckCm", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {currentBodyFatPercent != null && (
+                      <div className="bg-[var(--color-bg-alt)] rounded-[var(--radius-md)] p-3.5">
+                        <p className="text-xs text-[var(--color-text-secondary)]">
+                          Tu % de grasa estimado hoy es{" "}
+                          <span className="font-semibold text-[var(--color-plum-strong)]">
+                            {currentBodyFatPercent}%
+                          </span>{" "}
+                          — es una estimación, no un diagnóstico. Prioriza la tendencia en el tiempo.
+                        </p>
+                      </div>
+                    )}
+
                     <Input
-                      label="Peso objetivo (kg)"
+                      label="% de grasa objetivo"
                       type="number"
-                      step="0.1"
-                      value={form.targetWeightKg}
-                      onChange={(e) => update("targetWeightKg", e.target.value)}
+                      step="0.5"
+                      value={form.targetBodyFatPercent}
+                      onChange={(e) => update("targetBodyFatPercent", e.target.value)}
+                      hint="Esta será tu meta a seguir, no el peso"
                     />
                   </>
                 )}
@@ -349,14 +422,21 @@ export function OnboardingWizard({ name }: { name: string }) {
                 {step === 5 && preview && (
                   <div className="flex flex-col gap-4">
                     <p className="text-sm text-[var(--color-text-secondary)]">
-                      Estas son estimaciones iniciales — se irán ajustando con tus datos reales.
+                      Estas son estimaciones iniciales — se irán ajustando con tus datos reales. Tu déficit
+                      calórico es tu métrica principal.
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       <Stat label="Metabolismo basal" value={`${preview.bmr.toFixed(0)} kcal`} />
                       <Stat label="Mantenimiento (TDEE)" value={`${preview.tdee.tdeeMid} kcal`} />
+                      <Stat
+                        label="Déficit calórico"
+                        value={`${Math.round(preview.goal.deficitPercent * 100)}% del TDEE`}
+                        highlight
+                      />
                       <Stat label="Meta calórica" value={`${preview.goal.goalCalories} kcal`} />
-                      <Stat label="Pérdida semanal estimada" value={`${preview.goal.estimatedWeeklyLossKg} kg`} />
                       <Stat label="Meta de proteína" value={`${preview.protein.proteinGoalG} g`} />
+                      <Stat label="Meta de grasa" value={`${preview.macros.fatGoalG} g`} />
+                      <Stat label="Meta de carbohidratos" value={`${preview.macros.carbsGoalG} g`} />
                       <Stat label="Meta de agua" value={`${(form.waterGoalMl ?? preview.suggestedWater) / 1000} L`} />
                     </div>
                     {preview.goal.wasAdjusted && (
@@ -459,10 +539,14 @@ function OptionCard({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-[var(--radius-md)] bg-[var(--color-bg-alt)] px-3.5 py-3">
-      <p className="text-xs text-[var(--color-text-secondary)]">{label}</p>
+    <div
+      className={`rounded-[var(--radius-md)] px-3.5 py-3 ${
+        highlight ? "bg-[var(--color-plum)] text-white" : "bg-[var(--color-bg-alt)]"
+      }`}
+    >
+      <p className={`text-xs ${highlight ? "text-white/80" : "text-[var(--color-text-secondary)]"}`}>{label}</p>
       <p className="text-lg font-semibold font-display">{value}</p>
     </div>
   );

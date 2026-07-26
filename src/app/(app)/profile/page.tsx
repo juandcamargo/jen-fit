@@ -10,13 +10,16 @@ export default async function ProfilePage() {
     <ProfileClient
       email={user!.email}
       name={profile!.name}
-      targetWeightKg={profile!.targetWeightKg}
+      bodyFatPercent={profile!.bodyFatPercent}
+      targetBodyFatPercent={profile!.targetBodyFatPercent}
+      waistCm={profile!.waistCm}
+      lastMeasuredAt={profile!.lastMeasuredAt?.toISOString() ?? null}
       activityLevel={profile!.activityLevel}
       avgDailySteps={profile!.avgDailySteps}
       trainingDaysPerWeek={profile!.trainingDaysPerWeek}
+      pace={profile!.pace}
       proteinFactor={profile!.proteinFactor}
       waterGoalMl={profile!.waterGoalMl}
-      deficitPreference={profile!.deficitPreference}
       calculatedBmr={profile!.calculatedBmr}
       calculatedTdee={profile!.calculatedTdee}
     />

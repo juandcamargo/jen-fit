@@ -104,6 +104,10 @@ export default async function ExercisePage() {
                 <div>
                   <p className="text-sm font-medium">{w.title}</p>
                   <p className="text-xs text-[var(--color-text-muted)]">{w.subtitle}</p>
+                  <p className="text-[10px] text-[var(--color-text-muted)]">
+                    {w.date.toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" })} ·{" "}
+                    {w.date.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}
+                  </p>
                 </div>
               </div>
               <span className="text-xs text-[var(--color-text-secondary)]">

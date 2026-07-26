@@ -56,6 +56,8 @@ export async function POST(request: Request) {
       notes: input.notes,
       calories: config.isCreatine ? 0 : input.calories,
       proteinG: input.proteinG,
+      fatG: config.isCreatine ? 0 : input.fatG,
+      carbsG: config.isCreatine ? 0 : input.carbsG,
       proteinType: config.proteinType,
       isCreatine: config.isCreatine,
     },

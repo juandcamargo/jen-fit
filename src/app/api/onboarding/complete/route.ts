@@ -2,16 +2,10 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { onboardingSchema } from "@/lib/validation/onboarding"
-import { calculateBmr, ageFromBirthDate, estimateTdee } from "@/lib/calculations"
+import { calculateBmr, ageFromBirthDate, estimateTdee, estimateBodyFatPercent } from "@/lib/calculations"
 import { seedDefaultDataForUser } from "@/lib/gamification/seedDefaults"
 import { recomputeDailySummary } from "@/lib/dailySummary"
 import { startOfDay } from "@/lib/date"
-
-const PACE_TO_DEFICIT: Record<string, { deficitPreference: "soft" | "moderate" | "custom"; customDeficitKcal?: number }> = {
-  gradual: { deficitPreference: "soft" },
-  moderate: { deficitPreference: "moderate" },
-  faster: { deficitPreference: "custom", customDeficitKcal: 450 },
-}
 
 export async function POST(request: Request) {
   const session = await auth()
@@ -35,7 +29,14 @@ export async function POST(request: Request) {
     trainingDaysPerWeek: input.trainingDaysPerWeek,
   })
 
-  const deficitConfig = PACE_TO_DEFICIT[input.pace]
+  const bodyFatPercent = estimateBodyFatPercent({
+    waistCm: input.waistCm,
+    hipCm: input.hipCm,
+    neckCm: input.neckCm,
+    heightCm: input.heightCm,
+  })
+
+  const today = startOfDay(new Date())
 
   await prisma.$transaction([
     prisma.profile.update({
@@ -43,15 +44,21 @@ export async function POST(request: Request) {
       data: {
         birthDate,
         heightCm: input.heightCm,
-        targetWeightKg: input.targetWeightKg,
+        waistCm: input.waistCm,
+        hipCm: input.hipCm,
+        neckCm: input.neckCm,
+        bodyFatPercent,
+        targetBodyFatPercent: input.targetBodyFatPercent,
+        lastMeasuredAt: today,
         mainGoal: input.mainGoal,
         activityLevel: input.activityLevel,
         avgDailySteps: input.avgDailySteps,
         trainingDaysPerWeek: input.trainingDaysPerWeek,
         trainingTypes: JSON.stringify(input.trainingTypes),
         pace: input.pace,
-        deficitPreference: deficitConfig.deficitPreference,
-        customDeficitKcal: deficitConfig.customDeficitKcal,
+        // `pace` alone now drives the deficit percentage (calculateCalorieGoal);
+        // "moderate" here just means "read it from pace", not a fixed kcal amount.
+        deficitPreference: "moderate",
         proteinFactor: input.proteinFactor,
         waterGoalMl: input.waterGoalMl,
         calculatedBmr: bmr,
@@ -62,7 +69,17 @@ export async function POST(request: Request) {
       },
     }),
     prisma.weightLog.create({
-      data: { userId: session.user.id, date: startOfDay(new Date()), weightKg: input.currentWeightKg, note: "Peso inicial (onboarding)" },
+      data: { userId: session.user.id, date: today, weightKg: input.currentWeightKg, note: "Peso inicial (onboarding)" },
+    }),
+    prisma.bodyMeasurement.create({
+      data: {
+        userId: session.user.id,
+        date: today,
+        waistCm: input.waistCm,
+        hipCm: input.hipCm,
+        neckCm: input.neckCm,
+        bodyFatPercent,
+      },
     }),
     prisma.waterSettings.upsert({
       where: { userId: session.user.id },
@@ -74,5 +91,5 @@ export async function POST(request: Request) {
   await seedDefaultDataForUser(session.user.id)
   await recomputeDailySummary(session.user.id, new Date())
 
-  return NextResponse.json({ ok: true, bmr, tdee: tdeeEstimate })
+  return NextResponse.json({ ok: true, bmr, tdee: tdeeEstimate, bodyFatPercent })
 }

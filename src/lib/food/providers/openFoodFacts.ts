@@ -67,6 +67,38 @@ function normalizeProduct(product: OffProduct): NormalizedFood | null {
 const FIELDS =
   "code,product_name,product_name_es,generic_name,brands,quantity,serving_size,image_url,nutriments"
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Open Food Facts' `cgi/search.pl` endpoint intermittently returns 503
+// ("temporarily unavailable") under normal load — a couple of quick retries
+// clears the vast majority of these without the user ever seeing an error.
+async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000)
+      try {
+        const response = await fetch(url, {
+          headers: { "User-Agent": USER_AGENT },
+          next: { revalidate: 3600 },
+          signal: controller.signal,
+        })
+        if (response.ok) return response
+        lastError = new Error(`Open Food Facts request failed with status ${response.status}`)
+      } finally {
+        clearTimeout(timeout)
+      }
+    } catch (error) {
+      lastError = error
+    }
+    if (attempt < attempts) await sleep(400 * attempt)
+  }
+  throw lastError instanceof Error ? lastError : new Error("Open Food Facts request failed")
+}
+
 export class OpenFoodFactsProvider implements FoodProvider {
   id = "off"
 
@@ -81,13 +113,7 @@ export class OpenFoodFactsProvider implements FoodProvider {
     url.searchParams.set("page", String(page))
     url.searchParams.set("fields", FIELDS)
 
-    const response = await fetch(url.toString(), {
-      headers: { "User-Agent": USER_AGENT },
-      next: { revalidate: 3600 },
-    })
-    if (!response.ok) {
-      throw new Error(`Open Food Facts search failed with status ${response.status}`)
-    }
+    const response = await fetchWithRetry(url.toString())
     const data = (await response.json()) as { products?: OffProduct[] }
     return (data.products ?? [])
       .map(normalizeProduct)
@@ -98,11 +124,12 @@ export class OpenFoodFactsProvider implements FoodProvider {
     const url = new URL(`${BASE_URL}/api/v2/product/${encodeURIComponent(barcode)}.json`)
     url.searchParams.set("fields", FIELDS)
 
-    const response = await fetch(url.toString(), {
-      headers: { "User-Agent": USER_AGENT },
-      next: { revalidate: 3600 },
-    })
-    if (!response.ok) return null
+    let response: Response
+    try {
+      response = await fetchWithRetry(url.toString())
+    } catch {
+      return null
+    }
     const data = (await response.json()) as { status?: number; product?: OffProduct }
     if (data.status !== 1 || !data.product) return null
     return normalizeProduct(data.product)

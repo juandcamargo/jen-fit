@@ -4,6 +4,7 @@ import { recomputeDailySummary } from "@/lib/dailySummary";
 import { startOfDay, addDays } from "@/lib/date";
 import { levelForPoints, nextLevel } from "@/lib/gamification/catalog";
 import { summarizeWeeklyBalance } from "@/lib/calculations";
+import { getWeightAtDate } from "@/lib/weight";
 import { DashboardClient } from "./DashboardClient";
 
 export default async function DashboardPage() {
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
 
   await recomputeDailySummary(userId, today);
 
-  const [todaySummary, yesterdaySummary, weekSummaries, foodEntriesToday, streaks, recentBadges, activeChallenges] =
+  const [todaySummary, yesterdaySummary, weekSummaries, foodEntriesToday, streaks, recentBadges, activeChallenges, weightKg] =
     await Promise.all([
       prisma.dailySummary.findUnique({ where: { userId_date: { userId, date: today } } }),
       prisma.dailySummary.findUnique({ where: { userId_date: { userId, date: yesterday } } }),
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
       prisma.streak.findMany({ where: { userId } }),
       prisma.userBadge.findMany({ where: { userId }, orderBy: { unlockedAt: "desc" }, take: 3, include: { badge: true } }),
       prisma.userChallenge.findMany({ where: { userId, completed: false }, include: { challenge: true }, take: 3 }),
+      getWeightAtDate(userId, today),
     ]);
 
   const levelInfo = levelForPoints(profile!.totalFitPoints);
@@ -41,6 +43,10 @@ export default async function DashboardPage() {
       waterGoalMl: d.waterGoalMl,
     }))
   );
+
+  const daysSinceMeasured = profile!.lastMeasuredAt
+    ? Math.floor((today.getTime() - profile!.lastMeasuredAt.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   return (
     <DashboardClient
@@ -56,6 +62,10 @@ export default async function DashboardPage() {
       waterStreak={streaks.find((s) => s.type === "water")?.currentStreak ?? 0}
       recentBadges={recentBadges.map((b) => b.badge)}
       activeChallenges={activeChallenges}
+      weightKg={weightKg}
+      daysSinceMeasured={daysSinceMeasured}
+      bodyFatPercent={profile!.bodyFatPercent}
+      targetBodyFatPercent={profile!.targetBodyFatPercent}
     />
   );
 }

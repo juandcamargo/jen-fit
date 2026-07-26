@@ -10,7 +10,13 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { seedDefaultDataForUser } from "@/lib/gamification/seedDefaults"
 import { recomputeDailySummary } from "@/lib/dailySummary"
-import { estimateStrengthMet, estimateStrengthCalories, estimateCardioMet, estimateCardioCalories } from "@/lib/calculations"
+import {
+  estimateStrengthMet,
+  estimateStrengthCalories,
+  estimateCardioMet,
+  estimateCardioCalories,
+  estimateBodyFatPercent,
+} from "@/lib/calculations"
 import { startOfDay, addDays } from "@/lib/date"
 
 const DEMO_EMAIL = "demo@jenfit.app"
@@ -37,6 +43,16 @@ async function main() {
   const today = startOfDay(new Date())
   const startDate = addDays(today, -DAYS_OF_HISTORY)
 
+  const initialWaistCm = 78
+  const initialHipCm = 101
+  const initialNeckCm = 32
+  const initialBodyFatPercent = estimateBodyFatPercent({
+    waistCm: initialWaistCm,
+    hipCm: initialHipCm,
+    neckCm: initialNeckCm,
+    heightCm: 163,
+  })
+
   const user = await prisma.user.create({
     data: {
       name: "Valentina Torres",
@@ -47,7 +63,12 @@ async function main() {
           name: "Valentina Torres",
           birthDate: new Date("1996-04-12"),
           heightCm: 163,
-          targetWeightKg: 60,
+          waistCm: initialWaistCm,
+          hipCm: initialHipCm,
+          neckCm: initialNeckCm,
+          bodyFatPercent: initialBodyFatPercent,
+          targetBodyFatPercent: 24,
+          lastMeasuredAt: startDate,
           mainGoal: "reduce_fat",
           activityLevel: "moderate",
           avgDailySteps: 6500,
@@ -71,11 +92,20 @@ async function main() {
 
   await seedDefaultDataForUser(user.id)
 
-  // Starting weight trends gently down toward the goal.
+  // Starting weight trends gently down; waist/body-fat measured weekly.
   for (let i = 0; i <= DAYS_OF_HISTORY; i += 2) {
     const date = addDays(startDate, i)
     const weightKg = 65.4 - i * 0.09
     await prisma.weightLog.create({ data: { userId: user.id, date, weightKg: Number(weightKg.toFixed(1)) } })
+  }
+  for (let i = 0; i <= DAYS_OF_HISTORY; i += 7) {
+    const date = addDays(startDate, i)
+    const waistCm = Number((initialWaistCm - i * 0.05).toFixed(1))
+    const hipCm = Number((initialHipCm - i * 0.03).toFixed(1))
+    const bodyFatPercent = estimateBodyFatPercent({ waistCm, hipCm, neckCm: initialNeckCm, heightCm: 163 })
+    await prisma.bodyMeasurement.create({
+      data: { userId: user.id, date, waistCm, hipCm, neckCm: initialNeckCm, bodyFatPercent },
+    })
   }
 
   // Reusable food items (manual entries — no network calls needed for demo data).

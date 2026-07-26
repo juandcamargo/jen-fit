@@ -24,6 +24,7 @@ export const FULL_NAV: NavItem[] = [
   { href: "/achievements", label: "Logros", icon: "achievements" },
   { href: "/challenges", label: "Retos", icon: "target" },
   { href: "/calendar", label: "Calendario", icon: "calendar" },
+  { href: "/history", label: "Historial", icon: "history" },
   { href: "/profile", label: "Perfil", icon: "profile" },
   { href: "/settings", label: "Configuración", icon: "settings" },
 ];

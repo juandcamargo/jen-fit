@@ -55,6 +55,8 @@ export function AddFoodClient() {
   const [mealType, setMealType] = useState(searchParams.get("meal") ?? "breakfast");
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const dateParam = searchParams.get("date");
+  const foodPageHref = dateParam ? `/food?date=${dateParam}` : "/food";
 
   const mealSelector = (
     <div className="flex flex-wrap gap-2">
@@ -86,10 +88,10 @@ export function AddFoodClient() {
           const res = await fetch("/api/food/entries", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ foodItemId: selectedFood.id, mealType, quantityG, weightState }),
+            body: JSON.stringify({ foodItemId: selectedFood.id, mealType, quantityG, weightState, date: dateParam ?? undefined }),
           });
           if (res.ok) {
-            router.push("/food");
+            router.push(foodPageHref);
             router.refresh();
           }
           return res.ok;
@@ -117,10 +119,10 @@ export function AddFoodClient() {
           const res = await fetch("/api/food/entries", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ recipeId: selectedRecipe.id, mealType, quantityG }),
+            body: JSON.stringify({ recipeId: selectedRecipe.id, mealType, quantityG, date: dateParam ?? undefined }),
           });
           if (res.ok) {
-            router.push("/food");
+            router.push(foodPageHref);
             router.refresh();
           }
           return res.ok;

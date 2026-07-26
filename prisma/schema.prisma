@@ -74,15 +74,16 @@ model Profile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name           String
-  sex            String    @default("female")
-  birthDate      DateTime?
-  heightCm       Float?
-  targetWeightKg Float?
-  waistCm        Float?
-  hipCm          Float?
-  neckCm         Float?
-  bodyFatPercent Float?
+  name                 String
+  sex                  String    @default("female")
+  birthDate            DateTime?
+  heightCm             Float?
+  targetBodyFatPercent Float?
+  waistCm              Float?
+  hipCm                Float?
+  neckCm               Float?
+  bodyFatPercent       Float?
+  lastMeasuredAt       DateTime?
 
   mainGoal            String?
   activityLevel       String  @default("moderate") // sedentary/light/moderate/active/very_active
@@ -94,9 +95,10 @@ model Profile {
   dietaryPreferences  String? // JSON string array
   dietaryRestrictions String? // JSON string array
 
-  pace              String @default("moderate") // gradual/moderate/faster
-  deficitPreference String @default("moderate") // soft/moderate/custom
-  customDeficitKcal Int?
+  pace                 String @default("moderate") // gradual/moderate/faster
+  deficitPreference    String @default("moderate") // soft/moderate/custom
+  customDeficitKcal    Int?
+  customDeficitPercent Float? // used when deficitPreference == "custom"; fraction of TDEE, e.g. 0.17
 
   proteinFactor Float @default(1.8) // g per kg body weight
   waterGoalMl   Int   @default(2200)
@@ -310,6 +312,8 @@ model Supplement {
   reminderOn      Boolean  @default(false)
   calories        Float    @default(0)
   proteinG        Float    @default(0)
+  fatG            Float    @default(0)
+  carbsG          Float    @default(0)
   proteinType     String   @default("none")
   brand           String?
   notes           String?
@@ -405,6 +409,7 @@ model DailySummary {
 
   caloriesConsumed    Float   @default(0)
   caloriesGoal        Float   @default(0)
+  targetDeficitKcal   Float   @default(0) // % of TDEE she's aiming for, in kcal
   bmr                 Float   @default(0)
   baseExpenditure     Float   @default(0) // BMR * activity factor, no logged exercise
   exerciseCalories    Float   @default(0)
@@ -413,7 +418,9 @@ model DailySummary {
   proteinGoal         Float   @default(0)
   proteinCollagen     Float   @default(0)
   carbsConsumed       Float   @default(0)
+  carbsGoal           Float   @default(0)
   fatConsumed         Float   @default(0)
+  fatGoal             Float   @default(0)
   fiberConsumed       Float   @default(0)
   waterConsumedMl     Int     @default(0)
   waterGoalMl         Int     @default(0)

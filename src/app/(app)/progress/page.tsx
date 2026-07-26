@@ -8,8 +8,8 @@ export default async function ProgressPage() {
   const today = startOfDay(new Date());
   const yearAgo = addDays(today, -365);
 
-  const [weightLogs, summaries] = await Promise.all([
-    prisma.weightLog.findMany({
+  const [measurements, summaries] = await Promise.all([
+    prisma.bodyMeasurement.findMany({
       where: { userId: session.user.id, date: { gte: yearAgo } },
       orderBy: { date: "asc" },
     }),
@@ -21,7 +21,11 @@ export default async function ProgressPage() {
 
   return (
     <ProgressClient
-      weightLogs={weightLogs.map((w) => ({ date: w.date.toISOString(), weightKg: w.weightKg }))}
+      measurements={measurements.map((m) => ({
+        date: m.date.toISOString(),
+        waistCm: m.waistCm,
+        bodyFatPercent: m.bodyFatPercent,
+      }))}
       summaries={summaries.map((s) => ({
         date: s.date.toISOString(),
         deficitOrSurplus: s.deficitOrSurplus,
@@ -32,7 +36,7 @@ export default async function ProgressPage() {
         waterConsumedMl: s.waterConsumedMl,
         waterGoalMl: s.waterGoalMl,
       }))}
-      targetWeightKg={profile!.targetWeightKg}
+      targetBodyFatPercent={profile!.targetBodyFatPercent}
       tdeeConfidence={profile!.tdeeConfidence}
       calculatedTdee={profile!.calculatedTdee}
       tdeeLastCalibratedAt={profile!.tdeeLastCalibratedAt?.toISOString() ?? null}

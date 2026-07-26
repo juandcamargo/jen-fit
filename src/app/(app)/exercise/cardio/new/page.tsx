@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +32,8 @@ const EFFORT_OPTIONS = [
 
 export default function NewCardioPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [date, setDate] = useState(searchParams.get("date") ?? new Date().toISOString().slice(0, 10));
   const [type, setType] = useState("walk");
   const [minutes, setMinutes] = useState(30);
   const [effort, setEffort] = useState("moderate");
@@ -54,6 +56,7 @@ export default function NewCardioPage() {
         distanceKm: distanceKm ? Number(distanceKm) : undefined,
         inclinePercent: inclinePercent ? Number(inclinePercent) : undefined,
         avgHeartRate: avgHeartRate ? Number(avgHeartRate) : undefined,
+        date,
       }),
     });
     const data = await res.json();
@@ -68,6 +71,7 @@ export default function NewCardioPage() {
   }
 
   const showIncline = type === "walk" || type === "incline_walk" || type === "stairmaster";
+  const isToday = date === new Date().toISOString().slice(0, 10);
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
@@ -79,6 +83,19 @@ export default function NewCardioPage() {
       </div>
 
       <Card className="p-5 flex flex-col gap-4">
+        <div>
+          <Input
+            label="Fecha"
+            type="date"
+            value={date}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          {!isToday && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">Estás registrando una sesión de un día anterior.</p>
+          )}
+        </div>
+
         <div>
           <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">Tipo</p>
           <div className="grid grid-cols-3 gap-2">

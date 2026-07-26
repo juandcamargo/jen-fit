@@ -21,6 +21,8 @@ export const createSupplementSchema = z.object({
   notes: z.string().optional(),
   calories: z.number().min(0).max(500).default(0),
   proteinG: z.number().min(0).max(100).default(0),
+  fatG: z.number().min(0).max(100).default(0),
+  carbsG: z.number().min(0).max(100).default(0),
 })
 
 export const logSupplementSchema = z.object({
