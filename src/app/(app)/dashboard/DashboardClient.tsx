@@ -285,13 +285,13 @@ export function DashboardClient({
               <span className="text-sm font-display font-semibold">{(waterMl / 1000).toFixed(1)}L</span>
             </ProgressRing>
             <p className="text-[11px] text-[var(--color-text-secondary)]">Agua</p>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap justify-center gap-1 w-full">
               {WATER_QUICK_ADDS.map((amount) => (
                 <button
                   key={amount}
                   onClick={() => addWater(amount)}
                   disabled={waterLoading !== null}
-                  className="pressable text-[10px] px-1.5 py-1 rounded-full bg-[var(--color-bg-alt)] text-[var(--color-plum-strong)] font-medium disabled:opacity-50"
+                  className="pressable text-[9px] leading-none px-1.5 py-1 rounded-full bg-[var(--color-bg-alt)] text-[var(--color-plum-strong)] font-medium disabled:opacity-50"
                 >
                   +{amount}
                 </button>
