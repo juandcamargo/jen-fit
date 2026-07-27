@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
@@ -33,6 +33,7 @@ const EFFORT_OPTIONS = [
 export default function NewCardioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
   const [date, setDate] = useState(searchParams.get("date") ?? new Date().toISOString().slice(0, 10));
   const [type, setType] = useState("walk");
   const [minutes, setMinutes] = useState(30);
@@ -41,13 +42,46 @@ export default function NewCardioPage() {
   const [inclinePercent, setInclinePercent] = useState("");
   const [avgHeartRate, setAvgHeartRate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(!!editId);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editId) return;
+    fetch(`/api/exercise/cardio/${editId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const s = data.session;
+        if (!s) return;
+        setDate(new Date(s.date).toISOString().slice(0, 10));
+        setType(s.type);
+        setMinutes(s.minutes);
+        setEffort(s.effort);
+        setDistanceKm(s.distanceKm != null ? String(s.distanceKm) : "");
+        setInclinePercent(s.inclinePercent != null ? String(s.inclinePercent) : "");
+        setAvgHeartRate(s.avgHeartRate != null ? String(s.avgHeartRate) : "");
+      })
+      .finally(() => setLoadingExisting(false));
+  }, [editId]);
+
+  async function handleDelete() {
+    if (!editId) return;
+    setDeleting(true);
+    const res = await fetch(`/api/exercise/cardio/${editId}`, { method: "DELETE" });
+    setDeleting(false);
+    if (res.ok) {
+      router.push("/exercise");
+      router.refresh();
+    } else {
+      setError("No pudimos eliminar la sesión.");
+    }
+  }
 
   async function handleSubmit() {
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/exercise/cardio", {
-      method: "POST",
+    const res = await fetch(editId ? `/api/exercise/cardio/${editId}` : "/api/exercise/cardio", {
+      method: editId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type,
@@ -73,13 +107,31 @@ export default function NewCardioPage() {
   const showIncline = type === "walk" || type === "incline_walk" || type === "stairmaster";
   const isToday = date === new Date().toISOString().slice(0, 10);
 
+  if (loadingExisting) {
+    return (
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
+        <p className="text-sm text-[var(--color-text-muted)]">Cargando sesión...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="pressable text-[var(--color-text-secondary)]">
           <Icon name="back" />
         </button>
-        <h1 className="font-display text-2xl">Registrar cardio</h1>
+        <h1 className="font-display text-2xl flex-1">{editId ? "Editar cardio" : "Registrar cardio"}</h1>
+        {editId && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="pressable text-[var(--color-text-muted)] hover:text-[var(--color-error)] p-2 disabled:opacity-50"
+            aria-label="Eliminar sesión"
+          >
+            <Icon name="delete" />
+          </button>
+        )}
       </div>
 
       <Card className="p-5 flex flex-col gap-4">
@@ -160,7 +212,7 @@ export default function NewCardioPage() {
 
       {error && <p className="text-sm text-[var(--color-error)]">{error}</p>}
       <Button onClick={handleSubmit} loading={loading} icon="confirm">
-        Registrar sesión
+        {editId ? "Guardar cambios" : "Registrar sesión"}
       </Button>
     </div>
   );

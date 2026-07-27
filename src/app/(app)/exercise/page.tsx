@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireOnboardedUser } from "@/lib/session";
-import { addDays, startOfDay } from "@/lib/date";
+import { addDays, startOfDay, startOfMonth, endOfMonth } from "@/lib/date";
+import { buildTrainingCalendarMonth } from "@/lib/trainingCalendar";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/icons/Icon";
+import { ExerciseList, type ExerciseListItem } from "./ExerciseList";
+import { TrainingCalendarButton } from "./TrainingCalendarButton";
 
 const CARDIO_LABELS: Record<string, string> = {
   walk: "Caminata",
@@ -21,11 +23,17 @@ const CARDIO_LABELS: Record<string, string> = {
   other: "Otro",
 };
 
-export default async function ExercisePage() {
+export default async function ExercisePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ calMonth?: string }>;
+}) {
   const { session } = await requireOnboardedUser();
+  const { calMonth } = await searchParams;
   const weekAgo = addDays(startOfDay(new Date()), -6);
+  const monthAnchor = calMonth ? new Date(`${calMonth}-01T00:00:00`) : new Date();
 
-  const [strengthWorkouts, cardioSessions] = await Promise.all([
+  const [strengthWorkouts, cardioSessions, monthStrengthDates, monthCardioDates] = await Promise.all([
     prisma.strengthWorkout.findMany({
       where: { userId: session.user.id, date: { gte: weekAgo } },
       orderBy: { date: "desc" },
@@ -35,12 +43,21 @@ export default async function ExercisePage() {
       where: { userId: session.user.id, date: { gte: weekAgo } },
       orderBy: { date: "desc" },
     }),
+    prisma.strengthWorkout.findMany({
+      where: { userId: session.user.id, date: { gte: startOfMonth(monthAnchor), lte: endOfMonth(monthAnchor) } },
+      select: { date: true },
+    }),
+    prisma.cardioSession.findMany({
+      where: { userId: session.user.id, date: { gte: startOfMonth(monthAnchor), lte: endOfMonth(monthAnchor) } },
+      select: { date: true },
+    }),
   ]);
 
-  const combined = [
+  const combined: ExerciseListItem[] = [
     ...strengthWorkouts.map((w) => ({
       id: w.id,
-      date: w.date,
+      kind: "strength" as const,
+      date: w.date.toISOString(),
       title: w.name || "Fuerza",
       subtitle: `${w.sets.length} series · ${w.durationMin} min`,
       calories: w.caloriesEstimate,
@@ -48,19 +65,27 @@ export default async function ExercisePage() {
     })),
     ...cardioSessions.map((c) => ({
       id: c.id,
-      date: c.date,
+      kind: "cardio" as const,
+      date: c.date.toISOString(),
       title: CARDIO_LABELS[c.type] ?? c.type,
       subtitle: `${c.minutes} min`,
       calories: c.caloriesEstimate,
       icon: "cardio" as const,
     })),
-  ].sort((a, b) => b.date.getTime() - a.date.getTime());
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const weekCalories = combined.reduce((s, w) => s + (w.calories ?? 0), 0);
+  const trainingCalendar = buildTrainingCalendarMonth(monthAnchor, [
+    ...monthStrengthDates.map((w) => w.date),
+    ...monthCardioDates.map((c) => c.date),
+  ]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
-      <h1 className="font-display text-2xl">Ejercicio</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-2xl">Ejercicio</h1>
+        <TrainingCalendarButton calendar={trainingCalendar} />
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Link href="/exercise/strength/new">
@@ -87,36 +112,7 @@ export default async function ExercisePage() {
         <p className="text-xs text-[var(--color-text-muted)] mt-1">{combined.length} sesiones registradas</p>
       </Card>
 
-      <div className="flex flex-col gap-2">
-        {combined.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              Aún no registras entrenamientos esta semana. Un día de descanso también puede ser parte del progreso.
-            </p>
-          </Card>
-        ) : (
-          combined.map((w) => (
-            <Card key={w.id} className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[var(--color-bg-alt)] flex items-center justify-center text-[var(--color-plum-strong)]">
-                  <Icon name={w.icon} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{w.title}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">{w.subtitle}</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)]">
-                    {w.date.toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" })} ·{" "}
-                    {w.date.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              </div>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                {w.calories != null ? `${Math.round(w.calories)} kcal` : ""}
-              </span>
-            </Card>
-          ))
-        )}
-      </div>
+      <ExerciseList items={combined} />
     </div>
   );
 }

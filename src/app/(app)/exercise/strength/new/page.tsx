@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons/Icon";
 import { Card } from "@/components/ui/Card";
@@ -48,6 +48,7 @@ interface SetRow {
 export default function NewStrengthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
   const [date, setDate] = useState(searchParams.get("date") ?? new Date().toISOString().slice(0, 10));
   const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
   const [durationMin, setDurationMin] = useState(45);
@@ -59,7 +60,40 @@ export default function NewStrengthPage() {
   const [reps, setReps] = useState(10);
   const [weightKg, setWeightKg] = useState(20);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(!!editId);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editId) return;
+    fetch(`/api/exercise/strength/${editId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const w = data.workout;
+        if (!w) return;
+        setDate(new Date(w.date).toISOString().slice(0, 10));
+        setMuscleGroups(JSON.parse(w.muscleGroupsJson));
+        setDurationMin(w.durationMin);
+        setAvgRestSec(w.avgRestSec ?? 60);
+        setRoutineType(w.routineType);
+        setEffortLabel(w.effortLabel ?? "moderate");
+        setSets(w.sets.map((s: SetRow) => ({ ...s })));
+      })
+      .finally(() => setLoadingExisting(false));
+  }, [editId]);
+
+  async function handleDelete() {
+    if (!editId) return;
+    setDeleting(true);
+    const res = await fetch(`/api/exercise/strength/${editId}`, { method: "DELETE" });
+    setDeleting(false);
+    if (res.ok) {
+      router.push("/exercise");
+      router.refresh();
+    } else {
+      setError("No pudimos eliminar el entrenamiento.");
+    }
+  }
 
   function toggleMuscle(value: string) {
     setMuscleGroups((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
@@ -78,8 +112,8 @@ export default function NewStrengthPage() {
   async function handleSubmit() {
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/exercise/strength", {
-      method: "POST",
+    const res = await fetch(editId ? `/api/exercise/strength/${editId}` : "/api/exercise/strength", {
+      method: editId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ muscleGroups, durationMin, avgRestSec, routineType, effortLabel, sets, date }),
     });
@@ -96,13 +130,31 @@ export default function NewStrengthPage() {
 
   const isToday = date === new Date().toISOString().slice(0, 10);
 
+  if (loadingExisting) {
+    return (
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
+        <p className="text-sm text-[var(--color-text-muted)]">Cargando entrenamiento...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="pressable text-[var(--color-text-secondary)]">
           <Icon name="back" />
         </button>
-        <h1 className="font-display text-2xl">Registrar fuerza</h1>
+        <h1 className="font-display text-2xl flex-1">{editId ? "Editar fuerza" : "Registrar fuerza"}</h1>
+        {editId && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="pressable text-[var(--color-text-muted)] hover:text-[var(--color-error)] p-2 disabled:opacity-50"
+            aria-label="Eliminar entrenamiento"
+          >
+            <Icon name="delete" />
+          </button>
+        )}
       </div>
 
       <Card className="p-5 flex flex-col gap-4">
@@ -230,7 +282,7 @@ export default function NewStrengthPage() {
 
       {error && <p className="text-sm text-[var(--color-error)]">{error}</p>}
       <Button onClick={handleSubmit} loading={loading} disabled={muscleGroups.length === 0} icon="confirm">
-        Registrar entrenamiento
+        {editId ? "Guardar cambios" : "Registrar entrenamiento"}
       </Button>
     </div>
   );
