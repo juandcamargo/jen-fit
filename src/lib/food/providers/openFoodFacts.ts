@@ -1,6 +1,13 @@
 import type { FoodProvider, NormalizedFood } from "../types"
 
-const BASE_URL = process.env.OPEN_FOOD_FACTS_BASE_URL ?? "https://world.openfoodfacts.org"
+// The Colombia-scoped OFF instance surfaces predominantly Spanish-named,
+// locally-sold products first (searches for "co.openfoodfacts.org" — same
+// underlying database as world.openfoodfacts.org, just filtered/ranked for
+// that market), which is what this app's Spanish-speaking users expect from
+// search results. We still fall back to the worldwide instance for broader
+// coverage when the local instance comes up short.
+const BASE_URL = process.env.OPEN_FOOD_FACTS_BASE_URL ?? "https://co.openfoodfacts.org"
+const WORLD_FALLBACK_URL = "https://world.openfoodfacts.org"
 const USER_AGENT =
   process.env.OPEN_FOOD_FACTS_USER_AGENT ?? "JenFit/1.0 (https://example.com; contact via app support)"
 
@@ -13,6 +20,7 @@ interface OffProduct {
   quantity?: string
   serving_size?: string
   image_url?: string
+  lang?: string
   nutriments?: Record<string, number | string | undefined>
 }
 
@@ -65,7 +73,11 @@ function normalizeProduct(product: OffProduct): NormalizedFood | null {
 }
 
 const FIELDS =
-  "code,product_name,product_name_es,generic_name,brands,quantity,serving_size,image_url,nutriments"
+  "code,product_name,product_name_es,generic_name,brands,quantity,serving_size,image_url,lang,nutriments"
+
+function hasSpanishName(product: OffProduct): boolean {
+  return !!product.product_name_es || product.lang === "es"
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -104,7 +116,43 @@ export class OpenFoodFactsProvider implements FoodProvider {
 
   async searchByName(query: string, page = 1): Promise<NormalizedFood[]> {
     if (!query.trim()) return []
-    const url = new URL(`${BASE_URL}/cgi/search.pl`)
+
+    let local: OffProduct[] = []
+    let localFailed = false
+    try {
+      local = await this.searchOnHost(BASE_URL, query, page)
+    } catch {
+      localFailed = true
+    }
+
+    let combined = local
+    // The Colombia-scoped instance can come up short on less common items (or
+    // fail outright) — top up with the worldwide instance rather than
+    // showing "no results" when the local database just doesn't carry it.
+    if (local.length < 8) {
+      try {
+        const worldwide = await this.searchOnHost(WORLD_FALLBACK_URL, query, page)
+        const seen = new Set(local.map((p) => p.code))
+        combined = [...local, ...worldwide.filter((p) => !seen.has(p.code))]
+      } catch (error) {
+        // Both the local and worldwide hosts failed — a genuine outage, not
+        // just a sparse local catalog, so let the caller know.
+        if (localFailed) throw error
+      }
+    }
+
+    // Prefer showing only Spanish-named results — but if too few of the
+    // matches have one, fall back to the full (Spanish-first) list rather
+    // than leaving the user with almost nothing.
+    const spanishOnly = combined.filter(hasSpanishName)
+    const results = spanishOnly.length >= 3 ? spanishOnly : combined
+    const sorted = [...results].sort((a, b) => Number(hasSpanishName(b)) - Number(hasSpanishName(a)))
+
+    return sorted.map(normalizeProduct).filter((p): p is NormalizedFood => p != null)
+  }
+
+  private async searchOnHost(host: string, query: string, page: number): Promise<OffProduct[]> {
+    const url = new URL(`${host}/cgi/search.pl`)
     url.searchParams.set("search_terms", query)
     url.searchParams.set("search_simple", "1")
     url.searchParams.set("action", "process")
@@ -115,9 +163,7 @@ export class OpenFoodFactsProvider implements FoodProvider {
 
     const response = await fetchWithRetry(url.toString())
     const data = (await response.json()) as { products?: OffProduct[] }
-    return (data.products ?? [])
-      .map(normalizeProduct)
-      .filter((p): p is NormalizedFood => p != null)
+    return data.products ?? []
   }
 
   async getByBarcode(barcode: string): Promise<NormalizedFood | null> {
