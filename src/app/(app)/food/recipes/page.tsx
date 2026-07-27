@@ -4,6 +4,7 @@ import { requireOnboardedUser } from "@/lib/session";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/icons/Icon";
+import { RecipeIdeasSection } from "./RecipeIdeasSection";
 
 export default async function RecipesPage() {
   const { session } = await requireOnboardedUser();
@@ -54,6 +55,10 @@ export default async function RecipesPage() {
           })}
         </div>
       )}
+
+      <div className="border-t border-[var(--color-border)] pt-5">
+        <RecipeIdeasSection />
+      </div>
     </div>
   );
 }

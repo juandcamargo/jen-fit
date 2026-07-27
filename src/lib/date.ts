@@ -34,3 +34,11 @@ export function dateKey(date: Date): string {
 export function todayStart(): Date {
   return startOfDay(new Date())
 }
+
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+export function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
+}

@@ -20,3 +20,9 @@ export const createFoodEntrySchema = z.object({
   weightState: z.enum(["raw", "cooked", "dry"]).default("raw"),
   date: z.string().optional(),
 })
+
+export const addRecipeIdeaSchema = z.object({
+  ideaId: z.string(),
+  mealType: z.enum(MEAL_TYPES),
+  date: z.string().optional(),
+})

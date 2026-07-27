@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { celebrate } from "@/lib/celebrate";
+import type { DeficitCalendarMonth } from "@/lib/deficitCalendar";
 
 const MEAL_LABELS: Record<string, string> = {
   breakfast: "Desayuno",
@@ -69,12 +70,14 @@ export function FoodDayClient({
   keySupplements: initialKeySupplements,
   dateKey,
   isToday,
+  calendar,
 }: {
   entries: Entry[];
   summary: SummaryLike | null;
   keySupplements: KeySupplement[];
   dateKey: string;
   isToday: boolean;
+  calendar: DeficitCalendarMonth;
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState(initialEntries);
@@ -151,6 +154,8 @@ export function FoodDayClient({
           Volver a hoy
         </Link>
       )}
+
+      <DeficitCalendarCard calendar={calendar} selectedDateKey={dateKey} />
 
       <Card className="p-5">
         <div className="flex justify-between text-sm mb-1.5">
@@ -281,5 +286,93 @@ function MacroStat({
       </p>
       {goal != null && <p className="text-[10px] text-[var(--color-text-muted)]">de {goal}{unit}</p>}
     </div>
+  );
+}
+
+function DeficitCalendarCard({
+  calendar,
+  selectedDateKey,
+}: {
+  calendar: DeficitCalendarMonth;
+  selectedDateKey: string;
+}) {
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <Icon name="calendar" className="text-[var(--color-plum-strong)]" /> Déficit este mes
+        </p>
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/food?date=${selectedDateKey}&calMonth=${calendar.prevMonth}`}
+            className="pressable text-[var(--color-text-secondary)] p-1.5"
+            aria-label="Mes anterior"
+          >
+            <Icon name="chevronLeft" />
+          </Link>
+          <span className="text-xs text-[var(--color-text-secondary)] capitalize w-24 text-center">
+            {calendar.monthLabel}
+          </span>
+          <Link
+            href={`/food?date=${selectedDateKey}&calMonth=${calendar.nextMonth}`}
+            className="pressable text-[var(--color-text-secondary)] p-1.5"
+            aria-label="Mes siguiente"
+          >
+            <Icon name="chevronRight" />
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-[var(--color-text-muted)] mb-1.5">
+        {["D", "L", "M", "M", "J", "V", "S"].map((d, i) => (
+          <span key={i}>{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {calendar.cells.map((cell, i) => {
+          if (!cell) return <div key={i} />;
+          let bg = "var(--color-bg-alt)";
+          let textColor = "var(--color-text-muted)";
+          if (cell.hasData) {
+            bg = cell.met ? "var(--color-mint)" : "var(--color-coral)";
+            textColor = "white";
+          }
+          const dayCell = (
+            <div
+              className="aspect-square rounded-[var(--radius-sm)] flex items-center justify-center text-[11px] font-medium"
+              style={{
+                background: bg,
+                color: cell.hasData ? textColor : "var(--color-text-muted)",
+                opacity: cell.isFuture ? 0.4 : 1,
+                outline: cell.isToday ? "2px solid var(--color-plum)" : undefined,
+              }}
+            >
+              {cell.day}
+            </div>
+          );
+          return (
+            <div key={i}>
+              {cell.hasData ? (
+                <Link href={`/food?date=${cell.dateKey}&calMonth=${cell.dateKey.slice(0, 7)}`}>{dayCell}</Link>
+              ) : (
+                dayCell
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex gap-4 text-[11px] text-[var(--color-text-secondary)] mt-3">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-mint)" }} /> Déficit logrado
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-coral)" }} /> No logrado
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-bg-alt)" }} /> Sin datos
+        </span>
+      </div>
+    </Card>
   );
 }

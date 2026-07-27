@@ -1,0 +1,213 @@
+import type { IconName } from "@/components/icons/Icon"
+
+export type IdeaMealType = "breakfast" | "lunch" | "dinner" | "snack"
+
+export interface RecipeIdea {
+  id: string
+  name: string
+  mealType: IdeaMealType
+  icon: IconName
+  servingSizeG: number
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+  ingredients: string[]
+}
+
+export const IDEA_MEAL_LABELS: Record<IdeaMealType, string> = {
+  breakfast: "Desayuno",
+  lunch: "Almuerzo",
+  dinner: "Cena",
+  snack: "Meriendas",
+}
+
+// Curated, ready-to-log recipe ideas. Macros are pre-computed per serving
+// (checked against calories = protein*4 + carbs*4 + fat*9) so they can be
+// logged directly as a FoodEntry without requiring per-ingredient FoodItem
+// data — see /api/food/recipe-ideas/add.
+export const RECIPE_IDEAS: RecipeIdea[] = [
+  {
+    id: "idea-oats-egg-white-berries",
+    name: "Avena con claras y frutos rojos",
+    mealType: "breakfast",
+    icon: "nutrition",
+    servingSizeG: 350,
+    calories: 320,
+    protein: 22,
+    carbs: 45,
+    fat: 6,
+    fiber: 7,
+    ingredients: ["1/2 taza de avena", "3 claras de huevo", "1/2 taza de frutos rojos", "Canela al gusto"],
+  },
+  {
+    id: "idea-toast-egg-avocado",
+    name: "Tostadas integrales con huevo y aguacate",
+    mealType: "breakfast",
+    icon: "nutrition",
+    servingSizeG: 250,
+    calories: 380,
+    protein: 18,
+    carbs: 32,
+    fat: 20,
+    fiber: 8,
+    ingredients: ["2 tostadas integrales", "2 huevos", "1/4 de aguacate", "Sal y pimienta"],
+  },
+  {
+    id: "idea-greek-yogurt-granola",
+    name: "Yogur griego con granola y frutos rojos",
+    mealType: "breakfast",
+    icon: "nutrition",
+    servingSizeG: 300,
+    calories: 310,
+    protein: 20,
+    carbs: 40,
+    fat: 8,
+    fiber: 4,
+    ingredients: ["1 taza de yogur griego", "3 cdas de granola", "Frutos rojos al gusto"],
+  },
+  {
+    id: "idea-protein-shake-banana",
+    name: "Batido de proteína con plátano y avena",
+    mealType: "breakfast",
+    icon: "supplements",
+    servingSizeG: 400,
+    calories: 340,
+    protein: 30,
+    carbs: 40,
+    fat: 6,
+    fiber: 5,
+    ingredients: ["1 scoop de proteína", "1 plátano", "3 cdas de avena", "Leche o bebida vegetal"],
+  },
+  {
+    id: "idea-chicken-rice-salad",
+    name: "Pollo a la plancha con arroz integral y ensalada",
+    mealType: "lunch",
+    icon: "nutrition",
+    servingSizeG: 450,
+    calories: 520,
+    protein: 42,
+    carbs: 55,
+    fat: 12,
+    fiber: 6,
+    ingredients: ["150 g de pechuga de pollo", "1 taza de arroz integral", "Ensalada verde al gusto", "Aceite de oliva"],
+  },
+  {
+    id: "idea-tuna-chickpea-bowl",
+    name: "Bowl de atún con garbanzos y vegetales",
+    mealType: "lunch",
+    icon: "nutrition",
+    servingSizeG: 400,
+    calories: 430,
+    protein: 35,
+    carbs: 45,
+    fat: 11,
+    fiber: 9,
+    ingredients: ["1 lata de atún al agua", "1 taza de garbanzos cocidos", "Pepino, tomate y pimiento", "Limón y aceite de oliva"],
+  },
+  {
+    id: "idea-chicken-sweet-potato",
+    name: "Pechuga a la plancha con batata y espárragos",
+    mealType: "lunch",
+    icon: "nutrition",
+    servingSizeG: 420,
+    calories: 460,
+    protein: 40,
+    carbs: 48,
+    fat: 10,
+    fiber: 7,
+    ingredients: ["150 g de pechuga de pollo", "1 batata mediana", "Espárragos al horno", "Especias al gusto"],
+  },
+  {
+    id: "idea-salmon-quinoa-broccoli",
+    name: "Salmón al horno con quinoa y brócoli",
+    mealType: "dinner",
+    icon: "nutrition",
+    servingSizeG: 400,
+    calories: 480,
+    protein: 34,
+    carbs: 38,
+    fat: 20,
+    fiber: 6,
+    ingredients: ["150 g de salmón", "1/2 taza de quinoa", "Brócoli al vapor", "Limón y hierbas"],
+  },
+  {
+    id: "idea-tofu-veggie-stirfry",
+    name: "Tofu salteado con vegetales y arroz",
+    mealType: "dinner",
+    icon: "nutrition",
+    servingSizeG: 400,
+    calories: 380,
+    protein: 20,
+    carbs: 50,
+    fat: 10,
+    fiber: 8,
+    ingredients: ["150 g de tofu firme", "Vegetales salteados al gusto", "1/2 taza de arroz", "Salsa de soya baja en sodio"],
+  },
+  {
+    id: "idea-lentil-soup",
+    name: "Sopa de lentejas con verduras",
+    mealType: "dinner",
+    icon: "nutrition",
+    servingSizeG: 450,
+    calories: 340,
+    protein: 20,
+    carbs: 50,
+    fat: 6,
+    fiber: 12,
+    ingredients: ["1 taza de lentejas cocidas", "Zanahoria, apio y cebolla", "Caldo de vegetales", "Especias al gusto"],
+  },
+  {
+    id: "idea-yogurt-walnuts-honey",
+    name: "Yogur griego con nueces y miel",
+    mealType: "snack",
+    icon: "nutrition",
+    servingSizeG: 200,
+    calories: 220,
+    protein: 15,
+    carbs: 18,
+    fat: 10,
+    fiber: 1,
+    ingredients: ["1 taza de yogur griego", "1 cda de nueces", "1 cdta de miel"],
+  },
+  {
+    id: "idea-apple-peanut-butter",
+    name: "Manzana con mantequilla de maní",
+    mealType: "snack",
+    icon: "nutrition",
+    servingSizeG: 180,
+    calories: 200,
+    protein: 6,
+    carbs: 24,
+    fat: 9,
+    fiber: 4,
+    ingredients: ["1 manzana", "1 cda de mantequilla de maní"],
+  },
+  {
+    id: "idea-hummus-veggies",
+    name: "Hummus con zanahoria y pepino",
+    mealType: "snack",
+    icon: "nutrition",
+    servingSizeG: 200,
+    calories: 180,
+    protein: 7,
+    carbs: 20,
+    fat: 8,
+    fiber: 6,
+    ingredients: ["4 cdas de hummus", "Zanahoria en bastones", "Pepino en bastones"],
+  },
+  {
+    id: "idea-green-protein-shake",
+    name: "Batido verde con proteína",
+    mealType: "snack",
+    icon: "supplements",
+    servingSizeG: 350,
+    calories: 210,
+    protein: 20,
+    carbs: 22,
+    fat: 4,
+    fiber: 5,
+    ingredients: ["1 scoop de proteína", "1 taza de espinaca", "1/2 plátano", "Agua o bebida vegetal"],
+  },
+]

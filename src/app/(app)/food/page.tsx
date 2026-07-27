@@ -1,16 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { requireOnboardedUser } from "@/lib/session";
-import { startOfDay, endOfDay, dateKey } from "@/lib/date";
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, dateKey } from "@/lib/date";
+import { buildDeficitCalendarMonth } from "@/lib/deficitCalendar";
 import { FoodDayClient } from "./FoodDayClient";
 
-export default async function FoodPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function FoodPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string; calMonth?: string }>;
+}) {
   const { session } = await requireOnboardedUser();
-  const { date: dateParam } = await searchParams;
+  const { date: dateParam, calMonth } = await searchParams;
   const selectedDate = dateParam ? new Date(`${dateParam}T00:00:00`) : new Date();
   const dayStart = startOfDay(selectedDate);
   const dayEnd = endOfDay(selectedDate);
+  const monthAnchor = calMonth ? new Date(`${calMonth}-01T00:00:00`) : new Date();
 
-  const [entries, summary, keySupplements] = await Promise.all([
+  const [entries, summary, keySupplements, monthSummaries] = await Promise.all([
     prisma.foodEntry.findMany({
       where: { userId: session.user.id, date: { gte: dayStart, lte: dayEnd } },
       include: { foodItem: true, recipe: true },
@@ -24,6 +30,10 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
         OR: [{ proteinType: "collagen" }, { isCreatine: true }],
       },
       include: { logs: { where: { date: { gte: dayStart, lte: dayEnd } } } },
+    }),
+    prisma.dailySummary.findMany({
+      where: { userId: session.user.id, date: { gte: startOfMonth(monthAnchor), lte: endOfMonth(monthAnchor) } },
+      select: { date: true, goalsCompletedJson: true },
     }),
   ]);
 
@@ -43,6 +53,7 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
         proteinType: s.proteinType,
         takenToday: s.logs.some((l) => l.taken),
       }))}
+      calendar={buildDeficitCalendarMonth(monthAnchor, monthSummaries)}
     />
   );
 }
