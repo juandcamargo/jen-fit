@@ -16,8 +16,11 @@ export default async function RecipesPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl">Tus recetas</h1>
+      <div className="flex items-center gap-3">
+        <Link href="/food" className="pressable text-[var(--color-text-secondary)]">
+          <Icon name="back" />
+        </Link>
+        <h1 className="font-display text-2xl flex-1">Tus recetas</h1>
         <Link href="/food/recipes/new">
           <Button size="sm" icon="add">
             Nueva receta

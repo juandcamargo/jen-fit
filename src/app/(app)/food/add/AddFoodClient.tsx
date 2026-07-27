@@ -42,16 +42,16 @@ interface Recipe {
 }
 
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: "recipes", label: "Recetas", icon: "recipe" },
   { id: "search", label: "Buscar", icon: "search" },
   { id: "barcode", label: "Código de barras", icon: "scan" },
   { id: "manual", label: "Manual", icon: "edit" },
-  { id: "recipes", label: "Recetas", icon: "recipe" },
 ];
 
 export function AddFoodClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<Tab>("search");
+  const [tab, setTab] = useState<Tab>("recipes");
   const [mealType, setMealType] = useState(searchParams.get("meal") ?? "breakfast");
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);

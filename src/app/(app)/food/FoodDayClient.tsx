@@ -83,6 +83,7 @@ export function FoodDayClient({
   const [entries, setEntries] = useState(initialEntries);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [keySupplements, setKeySupplements] = useState(initialKeySupplements);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   async function toggleSupplement(s: KeySupplement) {
     const nextTaken = !s.takenToday;
@@ -142,11 +143,20 @@ export function FoodDayClient({
             <Icon name="chevronRight" />
           </button>
         </div>
-        <Link href="/food/recipes">
-          <Button variant="secondary" size="sm" icon="recipe">
-            Recetas
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCalendar(true)}
+            className="pressable w-9 h-9 rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] flex items-center justify-center"
+            aria-label="Ver calendario de déficit"
+          >
+            <Icon name="calendar" />
+          </button>
+          <Link href="/food/recipes">
+            <Button variant="secondary" size="sm" icon="recipe">
+              Recetas
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {!isToday && (
@@ -155,7 +165,9 @@ export function FoodDayClient({
         </Link>
       )}
 
-      <DeficitCalendarCard calendar={calendar} selectedDateKey={dateKey} />
+      {showCalendar && (
+        <CalendarModal calendar={calendar} selectedDateKey={dateKey} onClose={() => setShowCalendar(false)} />
+      )}
 
       <Card className="p-5">
         <div className="flex justify-between text-sm mb-1.5">
@@ -289,20 +301,35 @@ function MacroStat({
   );
 }
 
-function DeficitCalendarCard({
+function CalendarModal({
   calendar,
   selectedDateKey,
+  onClose,
 }: {
   calendar: DeficitCalendarMonth;
   selectedDateKey: string;
+  onClose: () => void;
 }) {
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold flex items-center gap-2">
-          <Icon name="calendar" className="text-[var(--color-plum-strong)]" /> Déficit este mes
-        </p>
-        <div className="flex items-center gap-1">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-md bg-[var(--color-surface)] rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] p-5 shadow-[var(--shadow-lg)]"
+        style={{ animation: "slide-up 250ms var(--ease-drawer, ease-out)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold flex items-center gap-2">
+            <Icon name="calendar" className="text-[var(--color-plum-strong)]" /> Déficit este mes
+          </p>
+          <button onClick={onClose} className="pressable text-[var(--color-text-secondary)] p-1.5" aria-label="Cerrar">
+            <Icon name="close" />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center gap-1 mb-3">
           <Link
             href={`/food?date=${selectedDateKey}&calMonth=${calendar.prevMonth}`}
             className="pressable text-[var(--color-text-secondary)] p-1.5"
@@ -310,7 +337,7 @@ function DeficitCalendarCard({
           >
             <Icon name="chevronLeft" />
           </Link>
-          <span className="text-xs text-[var(--color-text-secondary)] capitalize w-24 text-center">
+          <span className="text-xs text-[var(--color-text-secondary)] capitalize w-28 text-center">
             {calendar.monthLabel}
           </span>
           <Link
@@ -321,58 +348,64 @@ function DeficitCalendarCard({
             <Icon name="chevronRight" />
           </Link>
         </div>
-      </div>
 
-      <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-[var(--color-text-muted)] mb-1.5">
-        {["D", "L", "M", "M", "J", "V", "S"].map((d, i) => (
-          <span key={i}>{d}</span>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1.5">
-        {calendar.cells.map((cell, i) => {
-          if (!cell) return <div key={i} />;
-          let bg = "var(--color-bg-alt)";
-          let textColor = "var(--color-text-muted)";
-          if (cell.hasData) {
-            bg = cell.met ? "var(--color-mint)" : "var(--color-coral)";
-            textColor = "white";
-          }
-          const dayCell = (
-            <div
-              className="aspect-square rounded-[var(--radius-sm)] flex items-center justify-center text-[11px] font-medium"
-              style={{
-                background: bg,
-                color: cell.hasData ? textColor : "var(--color-text-muted)",
-                opacity: cell.isFuture ? 0.4 : 1,
-                outline: cell.isToday ? "2px solid var(--color-plum)" : undefined,
-              }}
-            >
-              {cell.day}
-            </div>
-          );
-          return (
-            <div key={i}>
-              {cell.hasData ? (
-                <Link href={`/food?date=${cell.dateKey}&calMonth=${cell.dateKey.slice(0, 7)}`}>{dayCell}</Link>
-              ) : (
-                dayCell
-              )}
-            </div>
-          );
-        })}
-      </div>
+        <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-[var(--color-text-muted)] mb-1.5">
+          {["D", "L", "M", "M", "J", "V", "S"].map((d, i) => (
+            <span key={i}>{d}</span>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {calendar.cells.map((cell, i) => {
+            if (!cell) return <div key={i} />;
+            let bg = "var(--color-bg-alt)";
+            let textColor = "var(--color-text-muted)";
+            if (cell.hasData) {
+              bg = cell.met ? "var(--color-mint)" : "var(--color-coral)";
+              textColor = "white";
+            }
+            const dayCell = (
+              <div
+                className="aspect-square rounded-[var(--radius-sm)] flex items-center justify-center text-[11px] font-medium"
+                style={{
+                  background: bg,
+                  color: cell.hasData ? textColor : "var(--color-text-muted)",
+                  opacity: cell.isFuture ? 0.4 : 1,
+                  outline: cell.isToday ? "2px solid var(--color-plum)" : undefined,
+                }}
+              >
+                {cell.day}
+              </div>
+            );
+            return (
+              <div key={i}>
+                {cell.hasData ? (
+                  <Link href={`/food?date=${cell.dateKey}&calMonth=${cell.dateKey.slice(0, 7)}`}>{dayCell}</Link>
+                ) : (
+                  dayCell
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-      <div className="flex gap-4 text-[11px] text-[var(--color-text-secondary)] mt-3">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-mint)" }} /> Déficit logrado
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-coral)" }} /> No logrado
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-bg-alt)" }} /> Sin datos
-        </span>
+        <div className="flex flex-wrap gap-4 text-[11px] text-[var(--color-text-secondary)] mt-3">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-mint)" }} /> Déficit logrado
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-coral)" }} /> No logrado
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-bg-alt)" }} /> Sin datos
+          </span>
+        </div>
       </div>
-    </Card>
+      <style>{`
+        @keyframes slide-up {
+          from { transform: translateY(24px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }
