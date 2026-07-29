@@ -20,12 +20,13 @@ export async function PATCH(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }, { status: 400 })
   }
-  const { dietaryPreferences, dietaryRestrictions, ...rest } = parsed.data
+  const { dietaryPreferences, dietaryRestrictions, birthDate, ...rest } = parsed.data
 
   const profile = await prisma.profile.update({
     where: { userId: session.user.id },
     data: {
       ...rest,
+      ...(birthDate ? { birthDate: new Date(birthDate) } : {}),
       ...(dietaryPreferences ? { dietaryPreferences: JSON.stringify(dietaryPreferences) } : {}),
       ...(dietaryRestrictions ? { dietaryRestrictions: JSON.stringify(dietaryRestrictions) } : {}),
     },

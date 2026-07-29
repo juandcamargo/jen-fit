@@ -24,9 +24,14 @@ const PACE_LABELS: Record<string, string> = {
 export function ProfileClient({
   email,
   name,
+  currentWeightKg,
+  heightCm,
+  birthDate,
   bodyFatPercent,
   targetBodyFatPercent,
   waistCm,
+  hipCm,
+  neckCm,
   lastMeasuredAt,
   activityLevel,
   avgDailySteps,
@@ -39,9 +44,14 @@ export function ProfileClient({
 }: {
   email: string;
   name: string;
+  currentWeightKg: number | null;
+  heightCm: number | null;
+  birthDate: string | null;
   bodyFatPercent: number | null;
   targetBodyFatPercent: number | null;
   waistCm: number | null;
+  hipCm: number | null;
+  neckCm: number | null;
   lastMeasuredAt: string | null;
   activityLevel: string;
   avgDailySteps: number | null;
@@ -71,6 +81,18 @@ export function ProfileClient({
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
 
+  const [vitals, setVitals] = useState({
+    weightKg: currentWeightKg != null ? String(currentWeightKg) : "",
+    waistCm: waistCm != null ? String(waistCm) : "",
+    hipCm: hipCm != null ? String(hipCm) : "",
+    neckCm: neckCm != null ? String(neckCm) : "",
+    heightCm: heightCm != null ? String(heightCm) : "",
+    birthDate: birthDate ?? "",
+  });
+  const [savingVitals, setSavingVitals] = useState(false);
+  const [vitalsSaved, setVitalsSaved] = useState(false);
+  const [vitalsError, setVitalsError] = useState<string | null>(null);
+
   const daysSinceMeasured = lastMeasuredAt
     ? Math.floor((Date.now() - new Date(lastMeasuredAt).getTime()) / (1000 * 60 * 60 * 24))
     : null;
@@ -85,6 +107,53 @@ export function ProfileClient({
     });
     setSaving(false);
     setSaved(true);
+    router.refresh();
+  }
+
+  async function handleSaveVitals() {
+    if (!vitals.weightKg) {
+      setVitalsError("Indica al menos tu peso actual.");
+      return;
+    }
+    setSavingVitals(true);
+    setVitalsSaved(false);
+    setVitalsError(null);
+
+    const weightRes = await fetch("/api/weight", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        weightKg: Number(vitals.weightKg),
+        ...(vitals.waistCm ? { waistCm: Number(vitals.waistCm) } : {}),
+        ...(vitals.hipCm ? { hipCm: Number(vitals.hipCm) } : {}),
+        ...(vitals.neckCm ? { neckCm: Number(vitals.neckCm) } : {}),
+      }),
+    });
+
+    if (!weightRes.ok) {
+      setSavingVitals(false);
+      setVitalsError("No pudimos guardar tu peso y medidas.");
+      return;
+    }
+
+    if (vitals.heightCm || vitals.birthDate) {
+      const profileRes = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(vitals.heightCm ? { heightCm: Number(vitals.heightCm) } : {}),
+          ...(vitals.birthDate ? { birthDate: vitals.birthDate } : {}),
+        }),
+      });
+      if (!profileRes.ok) {
+        setSavingVitals(false);
+        setVitalsError("Guardamos tu peso y medidas, pero no pudimos actualizar altura/fecha de nacimiento.");
+        return;
+      }
+    }
+
+    setSavingVitals(false);
+    setVitalsSaved(true);
     router.refresh();
   }
 
@@ -149,6 +218,67 @@ export function ProfileClient({
             Han pasado {daysSinceMeasured} días desde tu última medida — es buen momento para volver a medirte.
           </p>
         )}
+      </Card>
+
+      <Card className="p-5 flex flex-col gap-4 border-[var(--color-plum)]">
+        <div className="flex items-center gap-2">
+          <Icon name="ruler" className="text-[var(--color-plum-strong)]" />
+          <p className="text-sm font-semibold">Peso y medidas</p>
+        </div>
+        <p className="text-xs text-[var(--color-text-secondary)]">
+          Estos datos son la base de tu cálculo de gasto calórico (BMR/TDEE) y de tu % de grasa. Mantenlos
+          actualizados — cada cambio queda registrado en tu progreso.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Peso actual (kg)"
+            type="number"
+            step="0.1"
+            value={vitals.weightKg}
+            onChange={(e) => setVitals({ ...vitals, weightKg: e.target.value })}
+          />
+          <Input
+            label="Altura (cm)"
+            type="number"
+            step="0.5"
+            value={vitals.heightCm}
+            onChange={(e) => setVitals({ ...vitals, heightCm: e.target.value })}
+          />
+          <Input
+            label="Cintura (cm)"
+            type="number"
+            step="0.1"
+            value={vitals.waistCm}
+            onChange={(e) => setVitals({ ...vitals, waistCm: e.target.value })}
+          />
+          <Input
+            label="Cadera (cm)"
+            type="number"
+            step="0.1"
+            value={vitals.hipCm}
+            onChange={(e) => setVitals({ ...vitals, hipCm: e.target.value })}
+          />
+          <Input
+            label="Cuello (cm)"
+            type="number"
+            step="0.1"
+            value={vitals.neckCm}
+            onChange={(e) => setVitals({ ...vitals, neckCm: e.target.value })}
+          />
+          <Input
+            label="Fecha de nacimiento"
+            type="date"
+            value={vitals.birthDate}
+            onChange={(e) => setVitals({ ...vitals, birthDate: e.target.value })}
+          />
+        </div>
+
+        {vitalsError && <p className="text-xs text-[var(--color-error)]">{vitalsError}</p>}
+        <Button onClick={handleSaveVitals} loading={savingVitals} icon="confirm">
+          Guardar mis datos
+        </Button>
+        {vitalsSaved && <p className="text-xs text-[var(--color-mint)]">Datos actualizados y registrados en tu progreso.</p>}
       </Card>
 
       <Card className="p-5 flex flex-col gap-4">

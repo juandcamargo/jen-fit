@@ -2,6 +2,8 @@ import { z } from "zod"
 
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
+  heightCm: z.number().min(120).max(230).optional(),
+  birthDate: z.string().optional(),
   targetBodyFatPercent: z.number().min(8).max(50).optional(),
   activityLevel: z.enum(["sedentary", "light", "moderate", "very_active"]).optional(),
   avgDailySteps: z.number().min(0).max(50000).optional(),
