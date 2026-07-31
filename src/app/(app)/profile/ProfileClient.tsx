@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/icons/Icon";
+import { DEFICIT_PERCENT_BY_PACE, type Pace } from "@/lib/calculations";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentary: "Mayormente sentada",
@@ -96,6 +97,14 @@ export function ProfileClient({
   const daysSinceMeasured = lastMeasuredAt
     ? Math.floor((Date.now() - new Date(lastMeasuredAt).getTime()) / (1000 * 60 * 60 * 24))
     : null;
+
+  const deficitRange = useMemo(() => {
+    if (!calculatedTdee) return null;
+    const gradualKcal = Math.round(calculatedTdee * DEFICIT_PERCENT_BY_PACE.gradual);
+    const fasterKcal = Math.round(calculatedTdee * DEFICIT_PERCENT_BY_PACE.faster);
+    const currentKcal = Math.round(calculatedTdee * DEFICIT_PERCENT_BY_PACE[form.pace as Pace]);
+    return { gradualKcal, fasterKcal, currentKcal };
+  }, [calculatedTdee, form.pace]);
 
   async function handleSave() {
     setSaving(true);
@@ -198,6 +207,31 @@ export function ProfileClient({
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <h1 className="font-display text-2xl">Tu perfil</h1>
+
+      <Card className="p-5 flex flex-col gap-3 border-[var(--color-mint)]">
+        <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
+          Tu meta principal
+        </p>
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <Icon name="balance" className="text-[var(--color-mint)]" /> Rango de déficit calórico diario
+        </p>
+        {deficitRange ? (
+          <>
+            <p className="text-3xl font-display font-semibold text-[var(--color-mint)]">
+              {deficitRange.gradualKcal}–{deficitRange.fasterKcal} <span className="text-base font-sans text-[var(--color-text-muted)]">kcal/día</span>
+            </p>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Según tu TDEE actual ({Math.round(calculatedTdee!)} kcal) y un ritmo entre muy gradual (12%) y más
+              rápido (22%). Tu ritmo elegido ({PACE_LABELS[form.pace]}) apunta a{" "}
+              <span className="font-semibold text-[var(--color-text-primary)]">{deficitRange.currentKcal} kcal/día</span> de déficit.
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-[var(--color-text-secondary)]">
+            Completa tu peso, altura y fecha de nacimiento abajo para calcular tu rango de déficit.
+          </p>
+        )}
+      </Card>
 
       <Card className="p-5 flex flex-col gap-3">
         <p className="text-sm font-semibold">{name}</p>
