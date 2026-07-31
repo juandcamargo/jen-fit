@@ -66,6 +66,7 @@ export default async function DashboardPage() {
       daysSinceMeasured={daysSinceMeasured}
       bodyFatPercent={profile!.bodyFatPercent}
       targetBodyFatPercent={profile!.targetBodyFatPercent}
+      calculatedTdee={profile!.calculatedTdee}
     />
   );
 }

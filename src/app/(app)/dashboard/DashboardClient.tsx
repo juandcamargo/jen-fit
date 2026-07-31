@@ -9,6 +9,7 @@ import { ProgressRing } from "@/components/ui/ProgressRing";
 import { celebrate } from "@/lib/celebrate";
 import { balanceMessage, proteinMessage, waterMessage, workoutMessage, yesterdayGreeting } from "@/lib/motivation";
 import { projectDailyBalance, suggestWaysToCloseGap } from "@/lib/recommendation";
+import { DEFICIT_PERCENT_BY_PACE } from "@/lib/calculations";
 
 interface SummaryLike {
   caloriesConsumed: number;
@@ -74,6 +75,7 @@ export function DashboardClient({
   daysSinceMeasured,
   bodyFatPercent,
   targetBodyFatPercent,
+  calculatedTdee,
 }: {
   name: string;
   level: { level: number; name: string; minPoints: number };
@@ -99,6 +101,7 @@ export function DashboardClient({
   daysSinceMeasured: number | null;
   bodyFatPercent: number | null;
   targetBodyFatPercent: number | null;
+  calculatedTdee: number | null;
 }) {
   const [showMorning, setShowMorning] = useState(false);
   const [waterMl, setWaterMl] = useState(today?.waterConsumedMl ?? 0);
@@ -188,6 +191,12 @@ export function DashboardClient({
 
   const projectedDeficit = projection ? projection.projectedBurn - projection.projectedIntake : 0;
   const targetDeficitKcal = today?.targetDeficitKcal ?? 0;
+  // The healthy deficit range spans "muy gradual" (12% of TDEE) to "más
+  // rápido" (22% of TDEE) — same range shown as the primary goal on
+  // Profile. Going over it is a caution (too aggressive); falling short of
+  // it (or a surplus) means the day isn't on track.
+  const gradualKcal = calculatedTdee ? calculatedTdee * DEFICIT_PERCENT_BY_PACE.gradual : null;
+  const fasterKcal = calculatedTdee ? calculatedTdee * DEFICIT_PERCENT_BY_PACE.faster : null;
 
   const projectionChartData = projection
     ? [
@@ -200,6 +209,19 @@ export function DashboardClient({
   // overflow-hidden edge of the bar, where it would get clipped away.
   const deficitChartMax = Math.max(1, Math.abs(projectedDeficit), targetDeficitKcal) * 1.1;
   const targetMarkerPercent = Math.min(97, (targetDeficitKcal / deficitChartMax) * 100);
+
+  let projectedDeficitColor: string;
+  if (projectedDeficit < 0) {
+    projectedDeficitColor = "var(--color-error)"; // projected surplus
+  } else if (gradualKcal != null && fasterKcal != null && projectedDeficit > fasterKcal) {
+    projectedDeficitColor = "var(--color-coral)"; // more aggressive than recommended
+  } else if (gradualKcal != null && fasterKcal != null && projectedDeficit < gradualKcal) {
+    projectedDeficitColor = "var(--color-error)"; // short of the minimum healthy pace
+  } else if (gradualKcal == null && !projection?.onTrack) {
+    projectedDeficitColor = "var(--color-error)";
+  } else {
+    projectedDeficitColor = "var(--color-mint)";
+  }
 
   const groupedMeals = MEAL_ORDER.map((type) => ({
     type,
@@ -232,6 +254,8 @@ export function DashboardClient({
           deficitSoFar={deficitSoFar}
           targetDeficitKcal={targetDeficitKcal}
           fractionOfDayElapsed={fractionOfDayElapsed}
+          gradualKcal={gradualKcal}
+          fasterKcal={fasterKcal}
         />
 
         <div className="grid grid-cols-3 gap-3 mt-3">
@@ -332,7 +356,7 @@ export function DashboardClient({
                     className="h-full rounded-full"
                     style={{
                       width: `${Math.min(100, (Math.abs(projectedDeficit) / deficitChartMax) * 100)}%`,
-                      background: projection.onTrack ? "var(--color-mint)" : "var(--color-coral)",
+                      background: projectedDeficitColor,
                     }}
                   />
                   <div
@@ -569,32 +593,53 @@ function MetricRingCard({
 // The headline metric: today's calorie deficit, shown against the pace
 // needed at this hour to hit the day's target (targetDeficitKcal is a
 // full-day goal, so we prorate it by how much of the day has elapsed).
+// Color follows the healthy deficit range (gradual—faster pace, prorated
+// the same way): green inside it, orange above it (too aggressive), red
+// below it or in surplus.
 function DeficitHeroCard({
   deficitSoFar,
   targetDeficitKcal,
   fractionOfDayElapsed,
+  gradualKcal,
+  fasterKcal,
 }: {
   deficitSoFar: number;
   targetDeficitKcal: number;
   fractionOfDayElapsed: number;
+  gradualKcal: number | null;
+  fasterKcal: number | null;
 }) {
   const isDeficit = deficitSoFar < 0;
   const currentMagnitude = Math.abs(deficitSoFar);
   const tooEarly = fractionOfDayElapsed < 0.15;
   const proratedTarget = Math.max(targetDeficitKcal * fractionOfDayElapsed, 40);
   const percent = isDeficit ? Math.min(100, (currentMagnitude / proratedTarget) * 100) : 0;
-  const onPace = isDeficit && currentMagnitude >= proratedTarget * 0.9;
-  const color = !isDeficit ? "var(--color-coral)" : onPace ? "var(--color-mint)" : "var(--color-plum)";
 
+  const hasRange = gradualKcal != null && fasterKcal != null;
+  const proratedGradual = hasRange ? Math.max(gradualKcal! * fractionOfDayElapsed, 20) : null;
+  const proratedFaster = hasRange ? Math.max(fasterKcal! * fractionOfDayElapsed, 30) : null;
+
+  let color: string;
   let statusText: string;
+
   if (tooEarly) {
+    color = "var(--color-plum)";
     statusText = "El día recién empieza — sigue registrando tus comidas y actividad.";
   } else if (!isDeficit) {
+    color = "var(--color-error)";
     statusText = `Vas ${Math.round(currentMagnitude)} kcal en superávit por ahora. Aún puedes ajustar el resto del día.`;
-  } else if (onPace) {
-    statusText = "Vas al ritmo correcto para cumplir tu meta de hoy.";
-  } else {
+  } else if (hasRange && currentMagnitude > proratedFaster!) {
+    color = "var(--color-coral)";
+    statusText = "Tu déficit va más alto de lo recomendado para esta hora — no restrinjas demasiado la comida.";
+  } else if (hasRange && currentMagnitude < proratedGradual!) {
+    color = "var(--color-error)";
+    statusText = `Vas ${Math.round(proratedGradual! - currentMagnitude)} kcal por debajo del ritmo mínimo esperado a esta hora.`;
+  } else if (!hasRange && currentMagnitude < proratedTarget * 0.9) {
+    color = "var(--color-error)";
     statusText = `Vas ${Math.round(proratedTarget - currentMagnitude)} kcal por debajo del ritmo esperado a esta hora.`;
+  } else {
+    color = "var(--color-mint)";
+    statusText = "Vas al ritmo correcto para cumplir tu meta de hoy.";
   }
 
   return (
