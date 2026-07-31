@@ -12,11 +12,14 @@ import {
   Tooltip,
   BarChart,
   Bar,
+  Cell,
+  ReferenceArea,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/icons/Icon";
+import { DEFICIT_PERCENT_BY_PACE } from "@/lib/calculations";
 
 interface MeasurementPoint {
   date: string;
@@ -48,6 +51,35 @@ function movingAverage(points: { date: string; value: number }[], window: number
     return { date: p.date, value: Number(avg.toFixed(1)) };
   });
 }
+
+// Calendar weeks, Monday-start — matches how "esta semana" reads everywhere
+// else in the app.
+function mondayOf(date: Date): Date {
+  const day = date.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+type WeekVerdict = "good" | "aggressive" | "short" | "insufficient" | "unknown";
+
+const WEEK_VERDICT_LABELS: Record<WeekVerdict, string> = {
+  good: "Buena semana",
+  aggressive: "Semana muy agresiva",
+  short: "Semana floja o en superávit",
+  insufficient: "Datos insuficientes",
+  unknown: "Sin meta calculada",
+};
+
+const WEEK_VERDICT_COLORS: Record<WeekVerdict, string> = {
+  good: "var(--color-mint)",
+  aggressive: "var(--color-coral)",
+  short: "var(--color-error)",
+  insufficient: "var(--color-border)",
+  unknown: "var(--color-plum)",
+};
 
 export function ProgressClient({
   measurements,
@@ -96,6 +128,47 @@ export function ProgressClient({
         .map((s) => ({ date: s.date.slice(5, 10), deficit: -s.deficitOrSurplus })),
     [summaries, cutoff]
   );
+
+  // Weekly deficit history — always the last 12 calendar weeks regardless of
+  // the daily-chart range selector above, since this is a longer-term view.
+  const weeklyRange = useMemo(() => {
+    if (!calculatedTdee) return null;
+    return {
+      gradual: calculatedTdee * DEFICIT_PERCENT_BY_PACE.gradual * 7,
+      faster: calculatedTdee * DEFICIT_PERCENT_BY_PACE.faster * 7,
+    };
+  }, [calculatedTdee]);
+
+  const weeklyData = useMemo(() => {
+    const buckets = new Map<string, { weekStart: Date; sum: number; days: number }>();
+    for (const s of summaries) {
+      const monday = mondayOf(new Date(s.date));
+      const key = monday.toISOString().slice(0, 10);
+      const existing = buckets.get(key) ?? { weekStart: monday, sum: 0, days: 0 };
+      existing.sum += -s.deficitOrSurplus;
+      existing.days += 1;
+      buckets.set(key, existing);
+    }
+    const weeks = Array.from(buckets.values()).sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
+    return weeks.slice(-12).map((w) => {
+      let verdict: WeekVerdict;
+      if (w.days < 5) verdict = "insufficient";
+      else if (!weeklyRange) verdict = "unknown";
+      else if (w.sum > weeklyRange.faster) verdict = "aggressive";
+      else if (w.sum < weeklyRange.gradual) verdict = "short";
+      else verdict = "good";
+
+      const weekEnd = new Date(w.weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      return {
+        label: w.weekStart.toLocaleDateString("es", { day: "numeric", month: "short" }),
+        rangeLabel: `${w.weekStart.toLocaleDateString("es", { day: "numeric", month: "short" })} – ${weekEnd.toLocaleDateString("es", { day: "numeric", month: "short" })}`,
+        sum: Math.round(w.sum),
+        days: w.days,
+        verdict,
+      };
+    });
+  }, [summaries, weeklyRange]);
 
   const filteredSummaries = summaries.filter((s) => new Date(s.date).getTime() >= cutoff);
   const daysInDeficit = filteredSummaries.filter((s) => s.deficitOrSurplus < -50).length;
@@ -245,6 +318,75 @@ export function ProgressClient({
           </ResponsiveContainer>
         )}
         <p className="text-xs text-[var(--color-text-muted)] mt-2">Barras positivas = déficit; negativas = superávit.</p>
+      </Card>
+
+      <Card className="p-5">
+        <p className="text-sm font-semibold mb-1">Déficit semanal</p>
+        <p className="text-xs text-[var(--color-text-secondary)] mb-3">
+          Suma del déficit (o superávit) de cada semana, comparada con tu rango ideal
+          {weeklyRange ? ` (${Math.round(weeklyRange.gradual)}–${Math.round(weeklyRange.faster)} kcal)` : ""}.
+        </p>
+        {weeklyData.length === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)] py-8 text-center">Aún no hay semanas completas registradas.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={weeklyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              {weeklyRange && (
+                <ReferenceArea y1={weeklyRange.gradual} y2={weeklyRange.faster} fill="var(--color-mint)" fillOpacity={0.12} />
+              )}
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" />
+              <YAxis tick={{ fontSize: 11 }} stroke="var(--color-text-muted)" width={40} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                formatter={(value, _name, item) => [`${value} kcal`, WEEK_VERDICT_LABELS[(item.payload as { verdict: WeekVerdict }).verdict]]}
+              />
+              <Bar dataKey="sum" radius={[4, 4, 0, 0]} name="Déficit semanal (kcal)">
+                {weeklyData.map((w, i) => (
+                  <Cell key={i} fill={WEEK_VERDICT_COLORS[w.verdict]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+
+        <div className="flex flex-wrap gap-3 text-[11px] text-[var(--color-text-secondary)] mt-3">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-mint)" }} /> Buena semana
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-coral)" }} /> Muy agresiva
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-error)" }} /> Floja / superávit
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-border)" }} /> Datos insuficientes
+          </span>
+        </div>
+
+        {weeklyData.length > 0 && (
+          <div className="flex flex-col gap-1.5 mt-4 pt-4 border-t border-[var(--color-border)]">
+            <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">Histórico de semanas</p>
+            {[...weeklyData].reverse().map((w, i) => (
+              <div key={i} className="flex items-center justify-between text-xs py-1">
+                <span className="text-[var(--color-text-secondary)]">{w.rangeLabel}</span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold">{w.sum >= 0 ? "-" : "+"}{Math.abs(w.sum)} kcal</span>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                    style={{
+                      color: w.verdict === "insufficient" ? "var(--color-text-muted)" : "white",
+                      background: w.verdict === "insufficient" ? "var(--color-bg-alt)" : WEEK_VERDICT_COLORS[w.verdict],
+                    }}
+                  >
+                    {WEEK_VERDICT_LABELS[w.verdict]}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <div className="grid grid-cols-3 gap-3">
