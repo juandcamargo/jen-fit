@@ -49,6 +49,7 @@ model User {
   tdeeCalibrations     TdeeCalibration[]
   passwordResetTokens  PasswordResetToken[]
   createdFoodItems     FoodItem[]
+  hiddenRecipes        HiddenRecipe[]
 }
 
 model PasswordResetToken {
@@ -211,8 +212,9 @@ model FavoriteFood {
 
 model Recipe {
   id           String   @id @default(uuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isGlobal     Boolean  @default(false) // preloaded, visible to every account by default (userId is null)
   name         String
   servings     Int      @default(1)
   finalWeightG Float?
@@ -222,6 +224,21 @@ model Recipe {
 
   ingredients RecipeIngredient[]
   foodEntries FoodEntry[]
+  hiddenBy    HiddenRecipe[]
+}
+
+// Lets a user remove a global (preloaded) recipe from their own "Recetas
+// guardadas" without deleting it for everyone else — the recipe stays
+// available in Recomendaciones to re-save.
+model HiddenRecipe {
+  id       String   @id @default(uuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId String
+  recipe   Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  hiddenAt DateTime @default(now())
+
+  @@unique([userId, recipeId])
 }
 
 // weightState: raw | cooked | dry

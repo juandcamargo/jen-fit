@@ -9,6 +9,7 @@ export interface MyRecipe {
   id: string;
   name: string;
   servings: number;
+  isGlobal: boolean;
   totalCalories: number;
   ingredientNames: string[];
 }
@@ -46,14 +47,21 @@ export function MyRecipesGrid({ recipes: initialRecipes }: { recipes: MyRecipe[]
         <Card key={r.id} className="p-5">
           <div className="flex items-start justify-between gap-2 mb-1">
             <p className="text-sm font-semibold">{r.name}</p>
-            <button
-              onClick={() => handleDelete(r.id)}
-              disabled={deletingId === r.id}
-              className="pressable text-[var(--color-text-muted)] hover:text-[var(--color-error)] p-1 shrink-0"
-              aria-label="Eliminar receta"
-            >
-              <Icon name="delete" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {r.isGlobal && (
+                <span className="text-[9px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--color-mint-soft)] text-[var(--color-mint)]">
+                  Precargada
+                </span>
+              )}
+              <button
+                onClick={() => handleDelete(r.id)}
+                disabled={deletingId === r.id}
+                className="pressable text-[var(--color-text-muted)] hover:text-[var(--color-error)] p-1"
+                aria-label="Eliminar receta"
+              >
+                <Icon name="delete" />
+              </button>
+            </div>
           </div>
           <p className="text-xs text-[var(--color-text-muted)] mb-2">
             {r.servings} porciones · {Math.round(r.totalCalories / r.servings)} kcal/porción

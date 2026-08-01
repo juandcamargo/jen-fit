@@ -8,10 +8,12 @@ import { MyRecipesGrid } from "./MyRecipesGrid";
 
 export default async function RecipesPage() {
   const { session } = await requireOnboardedUser();
-  const myRecipes = await prisma.recipe.findMany({
-    where: { userId: session.user.id },
+  const recipes = await prisma.recipe.findMany({
+    where: {
+      OR: [{ userId: session.user.id }, { isGlobal: true, hiddenBy: { none: { userId: session.user.id } } }],
+    },
     include: { ingredients: { include: { foodItem: true } } },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ isGlobal: "asc" }, { createdAt: "desc" }],
   });
 
   return (
@@ -29,10 +31,11 @@ export default async function RecipesPage() {
       </div>
 
       <MyRecipesGrid
-        recipes={myRecipes.map((r) => ({
+        recipes={recipes.map((r) => ({
           id: r.id,
           name: r.name,
           servings: r.servings,
+          isGlobal: r.isGlobal,
           totalCalories: r.ingredients.reduce((s, i) => s + (i.foodItem.caloriesPer100g * i.quantityG) / 100, 0),
           ingredientNames: r.ingredients.map((i) => i.foodItem.name),
         }))}
