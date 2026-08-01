@@ -10,6 +10,7 @@
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-demo": "tsx prisma/seed-demo.ts",
+    "db:seed-jr-recipes": "tsx prisma/seed-jr-recipes.ts",
     "test": "vitest run"
   },
   "prisma": {
