@@ -215,6 +215,7 @@ model Recipe {
   userId       String?
   user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   isGlobal     Boolean  @default(false) // preloaded, visible to every account by default (userId is null)
+  mealType     String? // breakfast/lunch/dinner/snack/supplements — set on global recipes so "Registrar comida" can filter by the selected comida; null on personal recipes, which show for any comida
   name         String
   servings     Int      @default(1)
   finalWeightG Float?

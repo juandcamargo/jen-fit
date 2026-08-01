@@ -73,12 +73,14 @@ const INGREDIENTS: IngredientDef[] = [
 
 interface RecipeDef {
   name: string
+  mealType: "breakfast" | "lunch" | "dinner" | "snack" | "supplements"
   ingredients: { name: string; quantityG: number }[]
 }
 
 const RECIPES: RecipeDef[] = [
   {
     name: "Pancakes de frutos rojos",
+    mealType: "breakfast",
     ingredients: [
       { name: "Mezcla proteica para pancakes", quantityG: 50 },
       { name: "Huevo entero", quantityG: 50 },
@@ -90,6 +92,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Omelette de espinaca y tomate con tostada de masa madre",
+    mealType: "breakfast",
     ingredients: [
       { name: "Huevo entero", quantityG: 100 },
       { name: "Clara de huevo", quantityG: 66 },
@@ -102,6 +105,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Huevos pericos con arepa y fruta fresca",
+    mealType: "breakfast",
     ingredients: [
       { name: "Huevo entero", quantityG: 100 },
       { name: "Clara de huevo", quantityG: 66 },
@@ -113,6 +117,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Omelette Caprese con pan de masa madre",
+    mealType: "breakfast",
     ingredients: [
       { name: "Huevo entero", quantityG: 100 },
       { name: "Clara de huevo", quantityG: 66 },
@@ -124,6 +129,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Sándwich caliente de huevo y pavo",
+    mealType: "breakfast",
     ingredients: [
       { name: "Huevo entero", quantityG: 100 },
       { name: "Pan de masa madre", quantityG: 80 },
@@ -135,6 +141,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Burrito de desayuno",
+    mealType: "breakfast",
     ingredients: [
       { name: "Tortilla integral", quantityG: 60 },
       { name: "Huevo entero", quantityG: 100 },
@@ -147,6 +154,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Batido de proteína con fruta y avena",
+    mealType: "breakfast",
     ingredients: [
       { name: "Proteína vegetal en polvo", quantityG: 30 },
       { name: "Plátano", quantityG: 90 },
@@ -155,6 +163,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Bowl Mexicano de Pollo",
+    mealType: "lunch",
     ingredients: [
       { name: "Pechuga de pollo", quantityG: 120 },
       { name: "Arroz blanco cocido", quantityG: 100 },
@@ -168,6 +177,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Sudado de carne con papa y habichuelas",
+    mealType: "lunch",
     ingredients: [
       { name: "Carne de res magra", quantityG: 120 },
       { name: "Papa criolla", quantityG: 150 },
@@ -180,6 +190,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Pasta cremosa de pollo",
+    mealType: "lunch",
     ingredients: [
       { name: "Pasta seca", quantityG: 75 },
       { name: "Pechuga de pollo", quantityG: 120 },
@@ -192,6 +203,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Tacos saludables de carne",
+    mealType: "lunch",
     ingredients: [
       { name: "Carne de res magra", quantityG: 120 },
       { name: "Tortilla de maíz", quantityG: 75 },
@@ -202,6 +214,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Hamburguesa saludable con papas rústicas",
+    mealType: "lunch",
     ingredients: [
       { name: "Carne de res magra", quantityG: 130 },
       { name: "Pan integral para hamburguesa", quantityG: 50 },
@@ -213,6 +226,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Gyro de pollo con papas rústicas y salsa de yogur",
+    mealType: "lunch",
     ingredients: [
       { name: "Pechuga de pollo", quantityG: 130 },
       { name: "Papa", quantityG: 180 },
@@ -226,6 +240,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Crema de ahuyama rostizada con pollo",
+    mealType: "dinner",
     ingredients: [
       { name: "Ahuyama", quantityG: 300 },
       { name: "Cebolla", quantityG: 30 },
@@ -237,6 +252,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Salmón con vegetales al horno",
+    mealType: "dinner",
     ingredients: [
       { name: "Salmón", quantityG: 120 },
       { name: "Brócoli", quantityG: 120 },
@@ -247,6 +263,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Tilapia al limón con vegetales rostizados",
+    mealType: "dinner",
     ingredients: [
       { name: "Tilapia", quantityG: 140 },
       { name: "Brócoli", quantityG: 120 },
@@ -257,6 +274,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Pollo cremoso con champiñones y zucchini rostizado",
+    mealType: "dinner",
     ingredients: [
       { name: "Pechuga de pollo", quantityG: 140 },
       { name: "Champiñones", quantityG: 100 },
@@ -268,6 +286,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Pizza de tortilla de maíz alta en proteína",
+    mealType: "dinner",
     ingredients: [
       { name: "Tortilla de maíz", quantityG: 50 },
       { name: "Pechuga de pollo", quantityG: 90 },
@@ -279,6 +298,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Crema de tomate rostizado con queso gratinado y pollo",
+    mealType: "dinner",
     ingredients: [
       { name: "Tomate", quantityG: 400 },
       { name: "Cebolla", quantityG: 60 },
@@ -289,6 +309,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Batido pre/post-entreno",
+    mealType: "supplements",
     ingredients: [
       { name: "Proteína vegetal en polvo", quantityG: 30 },
       { name: "Creatina", quantityG: 5 },
@@ -296,6 +317,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Manzana con almendras",
+    mealType: "snack",
     ingredients: [
       { name: "Manzana", quantityG: 130 },
       { name: "Almendras", quantityG: 12 },
@@ -303,6 +325,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Huevos cocidos con fruta",
+    mealType: "snack",
     ingredients: [
       { name: "Huevo entero", quantityG: 75 },
       { name: "Piña", quantityG: 90 },
@@ -310,6 +333,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Piña con nueces",
+    mealType: "snack",
     ingredients: [
       { name: "Piña", quantityG: 100 },
       { name: "Nueces", quantityG: 10 },
@@ -317,6 +341,7 @@ const RECIPES: RecipeDef[] = [
   },
   {
     name: "Fresas con yogur griego",
+    mealType: "snack",
     ingredients: [
       { name: "Fresas", quantityG: 100 },
       { name: "Yogur griego bajo en grasa", quantityG: 100 },
@@ -347,11 +372,14 @@ async function main() {
   }
 
   let created = 0
-  let skipped = 0
+  let updated = 0
   for (const r of RECIPES) {
     const existingRecipe = await prisma.recipe.findFirst({ where: { name: r.name, isGlobal: true } })
     if (existingRecipe) {
-      skipped++
+      if (existingRecipe.mealType !== r.mealType) {
+        await prisma.recipe.update({ where: { id: existingRecipe.id }, data: { mealType: r.mealType } })
+      }
+      updated++
       continue
     }
     const finalWeightG = r.ingredients.reduce((s, i) => s + i.quantityG, 0)
@@ -359,6 +387,7 @@ async function main() {
       data: {
         userId: null,
         isGlobal: true,
+        mealType: r.mealType,
         name: r.name,
         servings: 1,
         finalWeightG,
@@ -374,7 +403,7 @@ async function main() {
     created++
   }
 
-  console.log(`Seeded ${INGREDIENTS.length} ingredients. Recipes: ${created} created, ${skipped} already existed.`)
+  console.log(`Seeded ${INGREDIENTS.length} ingredients. Recipes: ${created} created, ${updated} already existed (mealType backfilled).`)
 }
 
 main()

@@ -39,6 +39,7 @@ interface Recipe {
   name: string;
   servings: number;
   finalWeightG: number | null;
+  mealType: string | null;
 }
 
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
@@ -165,7 +166,7 @@ export function AddFoodClient() {
       {tab === "search" && <SearchTab onSelect={setSelectedFood} />}
       {tab === "barcode" && <BarcodeTab onSelect={setSelectedFood} />}
       {tab === "manual" && <ManualTab onCreated={setSelectedFood} />}
-      {tab === "recipes" && <RecipesTab onSelect={setSelectedRecipe} />}
+      {tab === "recipes" && <RecipesTab mealType={mealType} onSelect={setSelectedRecipe} />}
     </div>
   );
 }
@@ -358,7 +359,7 @@ function ManualTab({ onCreated }: { onCreated: (f: FoodItem) => void }) {
   );
 }
 
-function RecipesTab({ onSelect }: { onSelect: (r: Recipe) => void }) {
+function RecipesTab({ mealType, onSelect }: { mealType: string; onSelect: (r: Recipe) => void }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -371,6 +372,8 @@ function RecipesTab({ onSelect }: { onSelect: (r: Recipe) => void }) {
 
   if (loading) return <p className="text-sm text-[var(--color-text-muted)]">Cargando recetas...</p>;
 
+  const filtered = recipes.filter((r) => r.mealType === null || r.mealType === mealType);
+
   return (
     <div className="flex flex-col gap-2">
       {recipes.length === 0 ? (
@@ -382,8 +385,12 @@ function RecipesTab({ onSelect }: { onSelect: (r: Recipe) => void }) {
             </Button>
           </a>
         </div>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-[var(--color-text-muted)] text-center py-8">
+          No tienes recetas guardadas para esta comida.
+        </p>
       ) : (
-        recipes.map((r) => (
+        filtered.map((r) => (
           <button
             key={r.id}
             onClick={() => onSelect(r)}
