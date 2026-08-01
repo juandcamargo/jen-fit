@@ -211,9 +211,8 @@ model FavoriteFood {
 
 model Recipe {
   id           String   @id @default(uuid())
-  userId       String?
-  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isGlobal     Boolean  @default(false) // preloaded, visible to every account (userId is null)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name         String
   servings     Int      @default(1)
   finalWeightG Float?

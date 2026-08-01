@@ -26,3 +26,7 @@ export const addRecipeIdeaSchema = z.object({
   mealType: z.enum(MEAL_TYPES),
   date: z.string().optional(),
 })
+
+export const saveRecipeIdeaSchema = z.object({
+  ideaId: z.string(),
+})

@@ -8,9 +8,9 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "No autenticada." }, { status: 401 })
 
   const recipes = await prisma.recipe.findMany({
-    where: { OR: [{ userId: session.user.id }, { isGlobal: true }] },
+    where: { userId: session.user.id },
     include: { ingredients: { include: { foodItem: true } } },
-    orderBy: [{ isGlobal: "asc" }, { createdAt: "desc" }],
+    orderBy: { createdAt: "desc" },
   })
   return NextResponse.json({ recipes })
 }

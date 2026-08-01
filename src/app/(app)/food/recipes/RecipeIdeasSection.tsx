@@ -15,6 +15,8 @@ export function RecipeIdeasSection() {
   const [activeMeal, setActiveMeal] = useState<IdeaMealType>("breakfast");
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   async function addToDiet(idea: RecipeIdea) {
     setAddingId(idea.id);
@@ -32,16 +34,31 @@ export function RecipeIdeasSection() {
     }
   }
 
+  async function saveToMyRecipes(idea: RecipeIdea) {
+    setSavingId(idea.id);
+    const res = await fetch("/api/food/recipe-ideas/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ideaId: idea.id }),
+    });
+    setSavingId(null);
+    if (res.ok) {
+      setSavedId(idea.id);
+      router.refresh();
+    }
+  }
+
   const ideas = RECIPE_IDEAS.filter((i) => i.mealType === activeMeal);
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-sm font-semibold flex items-center gap-2 mb-1">
-          <Icon name="star" className="text-[var(--color-plum-strong)]" /> Ideas de recetas
+          <Icon name="star" className="text-[var(--color-plum-strong)]" /> Recomendaciones
         </p>
         <p className="text-xs text-[var(--color-text-secondary)]">
-          Opciones balanceadas listas para añadir a tu día — toca una para registrarla directamente.
+          Opciones balanceadas — regístralas como comida de hoy o guárdalas en tus recetas para usarlas cuando
+          quieras.
         </p>
       </div>
 
@@ -65,6 +82,8 @@ export function RecipeIdeasSection() {
         {ideas.map((idea) => {
           const isAdding = addingId === idea.id;
           const isAdded = addedId === idea.id;
+          const isSaving = savingId === idea.id;
+          const isSaved = savedId === idea.id;
           return (
             <Card key={idea.id} className="p-5 flex flex-col gap-3">
               <div className="flex items-start gap-3">
@@ -85,16 +104,30 @@ export function RecipeIdeasSection() {
                 ))}
               </ul>
 
-              <Button
-                size="sm"
-                variant={isAdded ? "secondary" : "primary"}
-                icon={isAdded ? "circleCheck" : "add"}
-                loading={isAdding}
-                disabled={isAdding}
-                onClick={() => addToDiet(idea)}
-              >
-                {isAdded ? "Añadida a hoy" : "Añadir a mi dieta"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={isAdded ? "secondary" : "primary"}
+                  icon={isAdded ? "circleCheck" : "add"}
+                  loading={isAdding}
+                  disabled={isAdding}
+                  onClick={() => addToDiet(idea)}
+                  className="flex-1"
+                >
+                  {isAdded ? "Añadida a hoy" : "Registrar hoy"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={isSaved ? "circleCheck" : "bookmark"}
+                  loading={isSaving}
+                  disabled={isSaving || isSaved}
+                  onClick={() => saveToMyRecipes(idea)}
+                  className="flex-1"
+                >
+                  {isSaved ? "Guardada" : "Guardar"}
+                </Button>
+              </div>
             </Card>
           );
         })}

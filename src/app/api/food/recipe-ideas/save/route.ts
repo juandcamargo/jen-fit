@@ -1,22 +1,20 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { recomputeDailySummary } from "@/lib/dailySummary"
-import { addRecipeIdeaSchema } from "@/lib/validation/foodEntry"
+import { saveRecipeIdeaSchema } from "@/lib/validation/foodEntry"
 import { RECIPE_IDEAS, recipeIdeaFoodItemData } from "@/lib/recipeIdeas"
 
 /**
- * Logs a curated recipe idea as today's (or a given date's) food entry.
- * Macros always come from the server-side catalog, never the client, and
- * the backing FoodItem is upserted once per idea (source/externalId) and
- * shared across users — same caching shape as the Open Food Facts provider.
+ * Saves a curated recipe idea as the user's own recipe (Tus recetas), so
+ * it can be reused from the "Recetas" tab without re-browsing ideas each
+ * time. Uses the same shared, cached FoodItem as "Añadir a mi dieta".
  */
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "No autenticada." }, { status: 401 })
 
   const body = await request.json().catch(() => null)
-  const parsed = addRecipeIdeaSchema.safeParse(body)
+  const parsed = saveRecipeIdeaSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }, { status: 400 })
   }
@@ -32,24 +30,18 @@ export async function POST(request: Request) {
     update: foodItemData,
   })
 
-  const date = input.date ? new Date(input.date) : new Date()
-
-  const entry = await prisma.foodEntry.create({
+  const recipe = await prisma.recipe.create({
     data: {
       userId: session.user.id,
-      date,
-      mealType: input.mealType,
-      foodItemId: foodItem.id,
-      quantityG: idea.servingSizeG,
-      weightState: "cooked",
-      calories: idea.calories,
-      protein: idea.protein,
-      carbs: idea.carbs,
-      fat: idea.fat,
-      fiber: idea.fiber,
+      name: idea.name,
+      servings: 1,
+      finalWeightG: idea.servingSizeG,
+      ingredients: {
+        create: [{ foodItemId: foodItem.id, quantityG: idea.servingSizeG, weightState: "cooked" }],
+      },
     },
+    include: { ingredients: { include: { foodItem: true } } },
   })
 
-  const result = await recomputeDailySummary(session.user.id, date)
-  return NextResponse.json({ entry, summary: result?.summary, newlyUnlockedBadgeCodes: result?.newlyUnlockedBadgeCodes ?? [] })
+  return NextResponse.json({ recipe })
 }
