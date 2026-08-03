@@ -69,6 +69,8 @@ const INGREDIENTS: IngredientDef[] = [
   { name: "Habichuelas", caloriesPer100g: 31, proteinPer100g: 1.8, carbsPer100g: 7, fatPer100g: 0.2, fiberPer100g: 3.4 },
   { name: "Salsa de tomate natural", caloriesPer100g: 20, proteinPer100g: 1, carbsPer100g: 4, fatPer100g: 0.2, fiberPer100g: 1 },
   { name: "Mezcla proteica para pancakes", caloriesPer100g: 360, proteinPer100g: 36, carbsPer100g: 24, fatPer100g: 12, fiberPer100g: 8 },
+  { name: "Ajo", caloriesPer100g: 149, proteinPer100g: 6.4, carbsPer100g: 33, fatPer100g: 0.5, fiberPer100g: 2.1 },
+  { name: "Albahaca fresca", caloriesPer100g: 23, proteinPer100g: 3.2, carbsPer100g: 2.7, fatPer100g: 0.6, fiberPer100g: 1.6 },
 ]
 
 interface RecipeDef {
@@ -77,6 +79,10 @@ interface RecipeDef {
   ingredients: { name: string; quantityG: number }[]
 }
 
+// Proyecto 27 - Menú semanal ajustado (reemplaza el menú anterior en su
+// totalidad). Días "flexibles" (desayuno/almuerzo/cena del domingo, y las
+// opciones de merienda de un solo alimento) se omiten a propósito — no son
+// recetas fijas, sino elecciones libres descritas en el documento.
 const RECIPES: RecipeDef[] = [
   {
     name: "Pancakes de frutos rojos",
@@ -95,7 +101,7 @@ const RECIPES: RecipeDef[] = [
     mealType: "breakfast",
     ingredients: [
       { name: "Huevo entero", quantityG: 100 },
-      { name: "Clara de huevo", quantityG: 66 },
+      { name: "Clara de huevo", quantityG: 60 },
       { name: "Espinaca fresca", quantityG: 40 },
       { name: "Tomate", quantityG: 60 },
       { name: "Queso mozzarella light", quantityG: 20 },
@@ -108,7 +114,7 @@ const RECIPES: RecipeDef[] = [
     mealType: "breakfast",
     ingredients: [
       { name: "Huevo entero", quantityG: 100 },
-      { name: "Clara de huevo", quantityG: 66 },
+      { name: "Clara de huevo", quantityG: 60 },
       { name: "Tomate", quantityG: 60 },
       { name: "Cebolla", quantityG: 20 },
       { name: "Arepa de maíz", quantityG: 60 },
@@ -120,9 +126,10 @@ const RECIPES: RecipeDef[] = [
     mealType: "breakfast",
     ingredients: [
       { name: "Huevo entero", quantityG: 100 },
-      { name: "Clara de huevo", quantityG: 66 },
+      { name: "Clara de huevo", quantityG: 60 },
       { name: "Tomate", quantityG: 60 },
       { name: "Queso mozzarella light", quantityG: 30 },
+      { name: "Albahaca fresca", quantityG: 5 },
       { name: "Pan de masa madre", quantityG: 40 },
       { name: "Aceite de oliva", quantityG: 5 },
     ],
@@ -131,56 +138,48 @@ const RECIPES: RecipeDef[] = [
     name: "Sándwich caliente de huevo y pavo",
     mealType: "breakfast",
     ingredients: [
-      { name: "Huevo entero", quantityG: 100 },
-      { name: "Pan de masa madre", quantityG: 80 },
-      { name: "Queso mozzarella light", quantityG: 30 },
+      { name: "Huevo entero", quantityG: 50 },
+      { name: "Clara de huevo", quantityG: 60 },
+      { name: "Pan de masa madre", quantityG: 70 },
       { name: "Pechuga de pavo (fiambre)", quantityG: 50 },
+      { name: "Queso mozzarella light", quantityG: 20 },
       { name: "Guacamole", quantityG: 20 },
-      { name: "Arándanos", quantityG: 40 },
+      { name: "Arándanos", quantityG: 80 },
     ],
   },
   {
     name: "Burrito de desayuno",
     mealType: "breakfast",
     ingredients: [
-      { name: "Tortilla integral", quantityG: 60 },
+      { name: "Tortilla integral", quantityG: 50 },
       { name: "Huevo entero", quantityG: 100 },
-      { name: "Clara de huevo", quantityG: 66 },
-      { name: "Queso mozzarella light", quantityG: 40 },
+      { name: "Clara de huevo", quantityG: 60 },
+      { name: "Queso mozzarella light", quantityG: 25 },
       { name: "Tomate", quantityG: 50 },
       { name: "Cebolla", quantityG: 20 },
       { name: "Guacamole", quantityG: 20 },
     ],
   },
   {
-    name: "Batido de proteína con fruta y avena",
-    mealType: "breakfast",
-    ingredients: [
-      { name: "Proteína vegetal en polvo", quantityG: 30 },
-      { name: "Plátano", quantityG: 90 },
-      { name: "Avena", quantityG: 20 },
-    ],
-  },
-  {
     name: "Bowl Mexicano de Pollo",
     mealType: "lunch",
     ingredients: [
-      { name: "Pechuga de pollo", quantityG: 120 },
-      { name: "Arroz blanco cocido", quantityG: 100 },
+      { name: "Pechuga de pollo", quantityG: 140 },
+      { name: "Arroz blanco cocido", quantityG: 80 },
       { name: "Fríjoles negros cocidos", quantityG: 50 },
-      { name: "Maíz dulce", quantityG: 40 },
+      { name: "Maíz dulce", quantityG: 30 },
       { name: "Tomate", quantityG: 60 },
       { name: "Pepino", quantityG: 60 },
       { name: "Pimentón rojo", quantityG: 40 },
-      { name: "Guacamole", quantityG: 50 },
+      { name: "Guacamole", quantityG: 30 },
     ],
   },
   {
     name: "Sudado de carne con papa y habichuelas",
     mealType: "lunch",
     ingredients: [
-      { name: "Carne de res magra", quantityG: 120 },
-      { name: "Papa criolla", quantityG: 150 },
+      { name: "Carne de res magra", quantityG: 130 },
+      { name: "Papa criolla", quantityG: 120 },
       { name: "Habichuelas", quantityG: 80 },
       { name: "Tomate", quantityG: 80 },
       { name: "Cebolla", quantityG: 30 },
@@ -192,22 +191,22 @@ const RECIPES: RecipeDef[] = [
     name: "Pasta cremosa de pollo",
     mealType: "lunch",
     ingredients: [
-      { name: "Pasta seca", quantityG: 75 },
-      { name: "Pechuga de pollo", quantityG: 120 },
+      { name: "Pasta seca", quantityG: 50 },
+      { name: "Pechuga de pollo", quantityG: 140 },
       { name: "Champiñones", quantityG: 80 },
       { name: "Espinaca fresca", quantityG: 60 },
       { name: "Leche evaporada descremada", quantityG: 60 },
       { name: "Aceite de oliva", quantityG: 5 },
-      { name: "Queso parmesano rallado", quantityG: 15 },
+      { name: "Queso parmesano rallado", quantityG: 10 },
     ],
   },
   {
     name: "Tacos saludables de carne",
     mealType: "lunch",
     ingredients: [
-      { name: "Carne de res magra", quantityG: 120 },
-      { name: "Tortilla de maíz", quantityG: 75 },
-      { name: "Guacamole", quantityG: 40 },
+      { name: "Carne de res magra", quantityG: 130 },
+      { name: "Tortilla de maíz", quantityG: 50 },
+      { name: "Guacamole", quantityG: 30 },
       { name: "Tomate", quantityG: 60 },
       { name: "Lechuga romana", quantityG: 40 },
     ],
@@ -218,24 +217,24 @@ const RECIPES: RecipeDef[] = [
     ingredients: [
       { name: "Carne de res magra", quantityG: 130 },
       { name: "Pan integral para hamburguesa", quantityG: 50 },
-      { name: "Queso mozzarella light", quantityG: 20 },
+      { name: "Queso mozzarella light", quantityG: 25 },
       { name: "Tomate", quantityG: 30 },
-      { name: "Papa", quantityG: 180 },
+      { name: "Lechuga romana", quantityG: 20 },
+      { name: "Papa", quantityG: 150 },
       { name: "Aceite de oliva", quantityG: 5 },
     ],
   },
   {
-    name: "Gyro de pollo con papas rústicas y salsa de yogur",
+    name: "Gyro de pollo con salsa de aguacate",
     mealType: "lunch",
     ingredients: [
       { name: "Pechuga de pollo", quantityG: 130 },
-      { name: "Papa", quantityG: 180 },
+      { name: "Papa", quantityG: 150 },
       { name: "Aceite de oliva", quantityG: 5 },
       { name: "Lechuga romana", quantityG: 30 },
       { name: "Tomate", quantityG: 30 },
       { name: "Pepino", quantityG: 30 },
-      { name: "Yogur griego bajo en grasa", quantityG: 40 },
-      { name: "Guacamole", quantityG: 35 },
+      { name: "Guacamole", quantityG: 30 },
     ],
   },
   {
@@ -244,6 +243,7 @@ const RECIPES: RecipeDef[] = [
     ingredients: [
       { name: "Ahuyama", quantityG: 300 },
       { name: "Cebolla", quantityG: 30 },
+      { name: "Ajo", quantityG: 6 },
       { name: "Aceite de oliva", quantityG: 5 },
       { name: "Caldo de pollo bajo en sodio", quantityG: 250 },
       { name: "Pechuga de pollo", quantityG: 120 },
@@ -291,7 +291,7 @@ const RECIPES: RecipeDef[] = [
       { name: "Tortilla de maíz", quantityG: 50 },
       { name: "Pechuga de pollo", quantityG: 90 },
       { name: "Salsa de tomate natural", quantityG: 40 },
-      { name: "Queso mozzarella light", quantityG: 40 },
+      { name: "Queso mozzarella light", quantityG: 30 },
       { name: "Champiñones", quantityG: 40 },
       { name: "Pimentón rojo", quantityG: 30 },
     ],
@@ -302,9 +302,11 @@ const RECIPES: RecipeDef[] = [
     ingredients: [
       { name: "Tomate", quantityG: 400 },
       { name: "Cebolla", quantityG: 60 },
+      { name: "Ajo", quantityG: 6 },
       { name: "Caldo de pollo bajo en sodio", quantityG: 250 },
       { name: "Queso mozzarella light", quantityG: 20 },
       { name: "Pechuga de pollo", quantityG: 140 },
+      { name: "Albahaca fresca", quantityG: 5 },
     ],
   },
   {
@@ -320,31 +322,23 @@ const RECIPES: RecipeDef[] = [
     mealType: "snack",
     ingredients: [
       { name: "Manzana", quantityG: 130 },
-      { name: "Almendras", quantityG: 12 },
+      { name: "Almendras", quantityG: 10 },
     ],
   },
   {
-    name: "Huevos cocidos con fruta",
+    name: "Piña con almendras",
     mealType: "snack",
     ingredients: [
-      { name: "Huevo entero", quantityG: 75 },
-      { name: "Piña", quantityG: 90 },
+      { name: "Piña", quantityG: 120 },
+      { name: "Almendras", quantityG: 10 },
     ],
   },
   {
-    name: "Piña con nueces",
+    name: "Manzana con nueces",
     mealType: "snack",
     ingredients: [
-      { name: "Piña", quantityG: 100 },
+      { name: "Manzana", quantityG: 130 },
       { name: "Nueces", quantityG: 10 },
-    ],
-  },
-  {
-    name: "Fresas con yogur griego",
-    mealType: "snack",
-    ingredients: [
-      { name: "Fresas", quantityG: 100 },
-      { name: "Yogur griego bajo en grasa", quantityG: 100 },
     ],
   },
 ]
@@ -371,17 +365,14 @@ async function main() {
     foodItemIdByName.set(ing.name, item.id)
   }
 
-  let created = 0
-  let updated = 0
+  // Full replace: this menu supersedes whatever was preloaded before, so
+  // every existing global recipe is removed first (per-user HiddenRecipe
+  // rows cascade-delete with it; any FoodEntry that already referenced one
+  // just loses the link — its saved macros stay intact) and the 22 recipes
+  // below are recreated from scratch, ingredient quantities included.
+  const deleted = await prisma.recipe.deleteMany({ where: { isGlobal: true } })
+
   for (const r of RECIPES) {
-    const existingRecipe = await prisma.recipe.findFirst({ where: { name: r.name, isGlobal: true } })
-    if (existingRecipe) {
-      if (existingRecipe.mealType !== r.mealType) {
-        await prisma.recipe.update({ where: { id: existingRecipe.id }, data: { mealType: r.mealType } })
-      }
-      updated++
-      continue
-    }
     const finalWeightG = r.ingredients.reduce((s, i) => s + i.quantityG, 0)
     await prisma.recipe.create({
       data: {
@@ -400,10 +391,9 @@ async function main() {
         },
       },
     })
-    created++
   }
 
-  console.log(`Seeded ${INGREDIENTS.length} ingredients. Recipes: ${created} created, ${updated} already existed (mealType backfilled).`)
+  console.log(`Seeded ${INGREDIENTS.length} ingredients. Removed ${deleted.count} old global recipes, created ${RECIPES.length} new ones.`)
 }
 
 main()
