@@ -146,6 +146,17 @@ export function DashboardClient({
     : null;
 
   const greeting = yesterdayGreeting(yesterdayDay, name);
+  const isMonday = now ? now.getDay() === 1 : false;
+  const yesterdayStats = yesterday
+    ? {
+        caloriesConsumed: yesterday.caloriesConsumed,
+        caloriesBurned: yesterday.expectedExpenditure,
+        deficitOrSurplus: yesterday.deficitOrSurplus,
+        targetDeficitKcal: yesterday.targetDeficitKcal,
+        proteinConsumed: yesterday.proteinConsumed,
+        proteinGoal: yesterday.proteinGoal,
+      }
+    : null;
 
   async function addWater(amount: number) {
     setWaterLoading(amount);
@@ -231,7 +242,14 @@ export function DashboardClient({
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
-      {showMorning && <MorningModal greeting={greeting} onClose={() => setShowMorning(false)} />}
+      {showMorning && (
+        <MorningModal
+          greeting={greeting}
+          stats={yesterdayStats}
+          isMonday={isMonday}
+          onClose={() => setShowMorning(false)}
+        />
+      )}
 
       {daysSinceMeasured != null && daysSinceMeasured >= 7 && (
         <Link href="/progress">
@@ -686,25 +704,70 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 
 function MorningModal({
   greeting,
+  stats,
+  isMonday,
   onClose,
 }: {
   greeting: { headline: string; lines: string[] };
+  stats: {
+    caloriesConsumed: number;
+    caloriesBurned: number;
+    deficitOrSurplus: number;
+    targetDeficitKcal: number;
+    proteinConsumed: number;
+    proteinGoal: number;
+  } | null;
+  isMonday: boolean;
   onClose: () => void;
 }) {
+  const deficitLabel =
+    stats && (stats.deficitOrSurplus <= 0 ? `-${Math.round(Math.abs(stats.deficitOrSurplus))}` : `+${Math.round(stats.deficitOrSurplus)}`);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
       <div
-        className="w-full sm:max-w-md bg-[var(--color-surface)] rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] p-6 shadow-[var(--shadow-lg)]"
+        className="w-full sm:max-w-md bg-[var(--color-surface)] rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] p-6 shadow-[var(--shadow-lg)] max-h-[90vh] overflow-y-auto"
         style={{ animation: "slide-up 300ms var(--ease-drawer)" }}
       >
         <h2 className="font-display text-2xl mb-4">{greeting.headline}</h2>
-        <div className="flex flex-col gap-2 mb-6">
+
+        {stats && (
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <MiniStat label="Calorías consumidas (ayer)" value={`${Math.round(stats.caloriesConsumed)} kcal`} />
+            <MiniStat label="Calorías quemadas (ayer)" value={`${Math.round(stats.caloriesBurned)} kcal`} />
+            <MiniStat
+              label={`Déficit vs. meta (-${Math.round(stats.targetDeficitKcal)} kcal)`}
+              value={`${deficitLabel} kcal`}
+            />
+            <MiniStat
+              label="Proteína"
+              value={`${Math.round(stats.proteinConsumed)}/${Math.round(stats.proteinGoal)} g`}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 mb-4">
           {greeting.lines.map((line, i) => (
             <p key={i} className="text-sm text-[var(--color-text-secondary)]">
               {line}
             </p>
           ))}
         </div>
+
+        {isMonday && (
+          <Link
+            href="/progress"
+            onClick={onClose}
+            className="pressable flex items-center gap-3 mb-6 px-3 py-2.5 rounded-[var(--radius-md)] border border-[var(--color-coral)] bg-[var(--color-coral)]/10"
+          >
+            <Icon name="ruler" className="text-[var(--color-coral)] shrink-0" />
+            <p className="text-xs text-[var(--color-text-secondary)] flex-1">
+              Hoy es lunes — buen día para actualizar tus medidas (cintura, cadera, cuello y peso).
+            </p>
+            <Icon name="chevronRight" className="text-[var(--color-text-muted)] shrink-0" />
+          </Link>
+        )}
+
         <Button onClick={onClose} className="w-full">
           Comenzar mi día
         </Button>
