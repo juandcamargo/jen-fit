@@ -62,12 +62,12 @@ export function yesterdayGreeting(yesterday: DaySnapshot | null, name: string): 
     }
   }
 
-  const lines: string[] = [balanceMessage(yesterday)]
-  const protein = proteinMessage(yesterday)
+  const lines: string[] = [yesterdayBalanceMessage(yesterday)]
+  const protein = yesterdayProteinMessage(yesterday)
   if (protein) lines.push(protein)
-  const water = waterMessage(yesterday)
+  const water = yesterdayWaterMessage(yesterday)
   if (water) lines.push(water)
-  lines.push(workoutMessage(yesterday))
+  lines.push(yesterdayWorkoutMessage(yesterday))
   const streak = streakMessage(yesterday)
   if (streak) lines.push(streak)
 
@@ -81,6 +81,42 @@ export function yesterdayGreeting(yesterday: DaySnapshot | null, name: string): 
         : "Ayer terminaste cerca de mantenimiento. Eso no borra tu progreso — hoy volvemos a enfocarnos en una decisión a la vez.",
     ],
   }
+}
+
+// Past-tense variants of the functions above, used only when summarizing a
+// day that already ended (the morning greeting's "ayer" recap). The present-
+// tense versions above describe today-in-progress and must stay untouched.
+function yesterdayBalanceMessage(day: DaySnapshot): string {
+  const { diffFromGoal, deficitOrSurplus } = day
+  if (diffFromGoal <= 0) {
+    return "Ayer te mantuviste dentro de tu meta calórica."
+  }
+  if (deficitOrSurplus < 0) {
+    return `Ayer estuviste ${Math.abs(diffFromGoal)} kcal por encima de tu meta calórica, pero aun así mantuviste un déficit aproximado de ${Math.abs(deficitOrSurplus)} kcal.`
+  }
+  return "Ayer fue un día por encima de tu meta calórica, pero tu progreso depende del promedio semanal, no de un solo día."
+}
+
+function yesterdayProteinMessage(day: DaySnapshot): string | null {
+  if (day.proteinGoal <= 0) return null
+  const pct = day.proteinConsumed / day.proteinGoal
+  if (pct >= 1) return "Ayer cumpliste tu meta de proteína, un gran paso para proteger tu masa muscular."
+  if (pct >= 0.8) return "Ayer estuviste muy cerca de completar tu meta de proteína."
+  return null
+}
+
+function yesterdayWaterMessage(day: DaySnapshot): string | null {
+  if (day.waterGoalMl <= 0) return null
+  const pct = day.waterConsumedMl / day.waterGoalMl
+  if (pct >= 1) return "Completaste tu meta de hidratación ayer."
+  if (pct >= 0.5) return "Ayer llegaste a la mitad de tu meta de agua."
+  return "Ayer tu cuerpo necesitó más agua de la que le diste."
+}
+
+function yesterdayWorkoutMessage(day: DaySnapshot): string {
+  return day.hadWorkout
+    ? "Ayer completaste tu entrenamiento."
+    : "Ayer fue un día de descanso — eso también puede ser parte del progreso."
 }
 
 export function noRegistrationMessage(daysSinceLastLog: number): string | null {

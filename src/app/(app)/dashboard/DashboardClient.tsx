@@ -150,6 +150,7 @@ export function DashboardClient({
   const yesterdayStats = yesterday
     ? {
         caloriesConsumed: yesterday.caloriesConsumed,
+        caloriesGoal: yesterday.caloriesGoal,
         caloriesBurned: yesterday.expectedExpenditure,
         deficitOrSurplus: yesterday.deficitOrSurplus,
         targetDeficitKcal: yesterday.targetDeficitKcal,
@@ -693,10 +694,25 @@ function Tip({ icon, text }: { icon: IconName; text: string }) {
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "good" | "warn" | "neutral";
+}) {
   return (
-    <div className="rounded-[var(--radius-md)] bg-[var(--color-bg-alt)] px-3 py-2.5">
-      <p className="text-[10px] text-[var(--color-text-secondary)]">{label}</p>
+    <div
+      className={`rounded-[var(--radius-md)] px-3 py-2.5 ${
+        tone === "warn" ? "bg-[var(--color-coral)]/10 border border-[var(--color-coral)]" : "bg-[var(--color-bg-alt)]"
+      }`}
+    >
+      <p className="text-[10px] text-[var(--color-text-secondary)] flex items-center gap-1">
+        {tone === "warn" && <Icon name="warning" className="text-[var(--color-coral)]" />}
+        {label}
+      </p>
       <p className="text-base font-semibold font-display">{value}</p>
     </div>
   );
@@ -711,6 +727,7 @@ function MorningModal({
   greeting: { headline: string; lines: string[] };
   stats: {
     caloriesConsumed: number;
+    caloriesGoal: number;
     caloriesBurned: number;
     deficitOrSurplus: number;
     targetDeficitKcal: number;
@@ -723,6 +740,22 @@ function MorningModal({
   const deficitLabel =
     stats && (stats.deficitOrSurplus <= 0 ? `-${Math.round(Math.abs(stats.deficitOrSurplus))}` : `+${Math.round(stats.deficitOrSurplus)}`);
 
+  // "Meta" tolerance bands: a deficit much smaller than the target (or a
+  // surplus) fell short; one much larger than the target overshot it.
+  const deficitTone: "good" | "warn" | "neutral" = (() => {
+    if (!stats) return "neutral";
+    if (stats.deficitOrSurplus > 0) return "warn";
+    const actual = Math.abs(stats.deficitOrSurplus);
+    if (stats.targetDeficitKcal > 0 && (actual < stats.targetDeficitKcal * 0.7 || actual > stats.targetDeficitKcal * 1.5)) return "warn";
+    return "good";
+  })();
+
+  const consumedTone: "good" | "warn" | "neutral" =
+    stats && stats.caloriesGoal > 0 ? (stats.caloriesConsumed > stats.caloriesGoal ? "warn" : "good") : "neutral";
+
+  const proteinTone: "good" | "warn" | "neutral" =
+    stats && stats.proteinGoal > 0 ? (stats.proteinConsumed < stats.proteinGoal ? "warn" : "good") : "neutral";
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
       <div
@@ -732,18 +765,23 @@ function MorningModal({
         <h2 className="font-display text-2xl mb-4">{greeting.headline}</h2>
 
         {stats && (
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <MiniStat label="Calorías consumidas (ayer)" value={`${Math.round(stats.caloriesConsumed)} kcal`} />
-            <MiniStat label="Calorías quemadas (ayer)" value={`${Math.round(stats.caloriesBurned)} kcal`} />
-            <MiniStat
-              label={`Déficit vs. meta (-${Math.round(stats.targetDeficitKcal)} kcal)`}
-              value={`${deficitLabel} kcal`}
-            />
-            <MiniStat
-              label="Proteína"
-              value={`${Math.round(stats.proteinConsumed)}/${Math.round(stats.proteinGoal)} g`}
-            />
-          </div>
+          <>
+            <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">Así te fue ayer</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <MiniStat
+                label="Calorías consumidas"
+                value={`${Math.round(stats.caloriesConsumed)} kcal`}
+                tone={consumedTone}
+              />
+              <MiniStat label="Calorías quemadas" value={`${Math.round(stats.caloriesBurned)} kcal`} />
+              <MiniStat label="Déficit" value={`${deficitLabel} kcal`} tone={deficitTone} />
+              <MiniStat
+                label="Proteína"
+                value={`${Math.round(stats.proteinConsumed)}/${Math.round(stats.proteinGoal)} g`}
+                tone={proteinTone}
+              />
+            </div>
+          </>
         )}
 
         <div className="flex flex-col gap-2 mb-4">
