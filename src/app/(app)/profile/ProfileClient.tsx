@@ -67,6 +67,7 @@ export function ProfileClient({
   const [form, setForm] = useState({
     targetBodyFatPercent: targetBodyFatPercent ?? 0,
     activityLevel,
+    avgDailySteps: avgDailySteps ?? 0,
     pace,
     trainingDaysPerWeek: trainingDaysPerWeek ?? 0,
     proteinFactor,
@@ -112,7 +113,13 @@ export function ProfileClient({
     await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      // targetBodyFatPercent defaults to 0 in form state until the user has
+      // set one; the schema requires >=8, so omit it entirely rather than
+      // send a value guaranteed to fail validation.
+      body: JSON.stringify({
+        ...form,
+        targetBodyFatPercent: form.targetBodyFatPercent > 0 ? form.targetBodyFatPercent : undefined,
+      }),
     });
     setSaving(false);
     setSaved(true);
@@ -340,6 +347,16 @@ export function ProfileClient({
               </button>
             ))}
           </div>
+          <Input
+            label="Pasos promedio al día (opcional)"
+            type="number"
+            className="mt-2"
+            value={form.avgDailySteps}
+            onChange={(e) => setForm({ ...form, avgDailySteps: Number(e.target.value) })}
+          />
+          <p className="text-[10px] text-[var(--color-text-secondary)] mt-1">
+            Nos ayuda a afinar tu nivel de actividad y tu gasto calórico diario.
+          </p>
         </div>
 
         <div>
