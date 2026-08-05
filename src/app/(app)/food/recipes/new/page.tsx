@@ -133,7 +133,7 @@ export default function NewRecipePage() {
                   type="number"
                   value={ing.quantityG}
                   onChange={(e) => updateQuantity(i, Number(e.target.value))}
-                  className="w-20 h-9 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 text-sm bg-[var(--color-surface)]"
+                  className="w-20 h-9 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 text-base bg-[var(--color-surface)]"
                 />
                 <span className="text-xs text-[var(--color-text-muted)]">g</span>
                 <button onClick={() => removeIngredient(i)} className="pressable text-[var(--color-text-muted)] hover:text-[var(--color-error)] p-1.5">

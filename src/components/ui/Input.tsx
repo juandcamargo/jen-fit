@@ -31,7 +31,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={inputId}
           className={`w-full h-11 rounded-[var(--radius-md)] border bg-[var(--color-surface)] text-[var(--color-text-primary)]
-            placeholder:text-[var(--color-text-muted)] outline-none transition-colors duration-150
+            text-base placeholder:text-[var(--color-text-muted)] outline-none transition-colors duration-150
             ${icon ? "pl-10 pr-3.5" : "px-3.5"}
             ${error ? "border-[var(--color-error)]" : "border-[var(--color-border)] focus:border-[var(--color-rose-strong)]"}
             ${className}`}

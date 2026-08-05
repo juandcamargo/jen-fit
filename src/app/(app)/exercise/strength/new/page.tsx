@@ -239,21 +239,21 @@ export default function NewStrengthPage() {
             placeholder="Ejercicio"
             value={exerciseName}
             onChange={(e) => setExerciseName(e.target.value)}
-            className="col-span-2 h-9 px-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-sm bg-[var(--color-surface)]"
+            className="col-span-2 h-9 px-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-base bg-[var(--color-surface)]"
           />
           <input
             type="number"
             placeholder="Reps"
             value={reps}
             onChange={(e) => setReps(Number(e.target.value))}
-            className="h-9 px-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-sm bg-[var(--color-surface)]"
+            className="h-9 px-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-base bg-[var(--color-surface)]"
           />
           <input
             type="number"
             placeholder="Peso kg"
             value={weightKg}
             onChange={(e) => setWeightKg(Number(e.target.value))}
-            className="h-9 px-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-sm bg-[var(--color-surface)]"
+            className="h-9 px-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-base bg-[var(--color-surface)]"
           />
         </div>
         <Button variant="secondary" size="sm" onClick={addSet} icon="add">
